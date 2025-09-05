@@ -1,8 +1,7 @@
 package neurosnap.controller;
 
-import java.util.Arrays;
 import java.util.List;
-import neurosnap.dto.RecommendOptions;
+import neurosnap.dto.RecommendOptionsResponse;
 import neurosnap.dto.RecommendRequest;
 import neurosnap.service.RecommendationService;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,7 +22,7 @@ public class RecommendationController
     }
 
     @PostMapping("/recommend")
-    public List<RecommendOptions> recommendOptions(
+    public RecommendOptionsResponse recommendOptions(
             @RequestBody RecommendRequest request
     ) {
 
