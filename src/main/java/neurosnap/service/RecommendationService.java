@@ -22,7 +22,7 @@ public class RecommendationService
 
       //  RecommendOptionsResponse response =
        //         populateRecommendOptionsResponse();
-       // List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona.xlsx" );
+        List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona.xlsx" );
 
       //  return Arrays.asList(option1, option2, option3);
         return populateRecommendOptionsResponse();

@@ -9,6 +9,7 @@ import lombok.*;
 @AllArgsConstructor
 public class RecommendRequest {
         @JsonAlias({"loan_amount"})
+
         private long loanAmount;
 
         private int tenure;
