@@ -1,7 +1,7 @@
 package neurosnap.service;
 
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import neurosnap.dto.Persona;
 import neurosnap.dto.RecommendOption;
 import neurosnap.dto.RecommendOptionsResponse;
@@ -18,11 +18,10 @@ public class RecommendationService
         this.personaReaderService = personaReaderService;
     }
 
-    public RecommendOptionsResponse getRecommendations(RecommendRequest request ) {
+    public RecommendOptionsResponse getRecommendations(RecommendRequest request, String personaId ) {
 
-      //  RecommendOptionsResponse response =
-       //         populateRecommendOptionsResponse();
         List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona.xlsx" );
+
 
       //  return Arrays.asList(option1, option2, option3);
         return populateRecommendOptionsResponse();

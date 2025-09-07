@@ -13,7 +13,7 @@ import java.util.Set;
 @AllArgsConstructor
 public class RefiInputValidator {
 
-    public List<String>  validate( RecommendRequest requstObject) {
+    public List<String>  validate( RecommendRequest requstObject, String personaId ) {
         List<String> errors = new ArrayList<>();
 
         if (requstObject.getLoanAmount() < 300 || requstObject.getLoanAmount()>5000 ) {
@@ -30,6 +30,10 @@ public class RefiInputValidator {
 
         if (requstObject.getGoal() == null || !isValidGoal(requstObject.getGoal())) {
             errors.add("Goal must of one of : LOWER_EMI, BALANCED, FASTER_CLOSURE");
+        }
+
+        if (personaId == null || personaId.isEmpty()) {
+            errors.add("persona-id header is required");
         }
 
         return errors;
