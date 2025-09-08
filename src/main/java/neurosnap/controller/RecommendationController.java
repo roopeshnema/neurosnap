@@ -4,11 +4,13 @@ import java.util.List;
 import java.util.Map;
 
 import java.util.Optional;
+import neurosnap.dto.Persona;
 import neurosnap.dto.RecommendOptionsResponse;
 import neurosnap.dto.RecommendRequest;
 import neurosnap.service.RecommendationService;
 import neurosnap.util.RefiInputValidator;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -46,6 +48,32 @@ public class RecommendationController
         }
 
         RecommendOptionsResponse response = recommendationService.getRecommendations(request, personaId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/example")
+    public ResponseEntity<?> examples(@RequestBody RecommendRequest request,
+            @RequestHeader( value = "persona-id", required = false ) final String personaId) throws Exception
+    {
+
+
+        List<String> errors = refiInputValidator.validate(request, personaId);
+
+        if (!errors.isEmpty()) {
+            // Return HTTP 400 with the error list
+            return ResponseEntity
+                    .badRequest()
+                    .body(Map.of("errors", errors));
+        }
+
+        RecommendOptionsResponse response = recommendationService.getExamples(request, personaId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/personas")
+    public ResponseEntity<?> personas() throws Exception
+    {
+        List<Persona> response = recommendationService.getPersonas();
         return ResponseEntity.ok(response);
     }
 }

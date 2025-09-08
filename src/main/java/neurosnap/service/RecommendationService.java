@@ -45,6 +45,23 @@ public class RecommendationService
         return populateRecommendOptionsResponse();
     }
 
+    public RecommendOptionsResponse getExamples(RecommendRequest request, String personaId ) throws Exception
+    {
+
+        List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona.xlsx" );
+        Optional<Persona> personaResult = personaList.stream()
+                .filter(p -> p.getPersonaId().equals(personaId))
+                .findFirst();
+        Persona persona = personaResult.get();
+
+        rulesReaderService.loadRules( "rules.xlsx" );
+
+
+
+        //  return Arrays.asList(option1, option2, option3);
+        return populateRecommendOptionsResponse();
+    }
+
     private RecommendOptionsResponse populateRecommendOptionsResponse() {
         RecommendOptionsResponse response = new RecommendOptionsResponse();
         response.setPersonaId("P_EARLY_PAYER");
@@ -189,4 +206,8 @@ public class RecommendationService
         return Math.round(v * 100.0) / 100.0;
     }
 
+    public List<Persona> getPersonas()
+    {
+        return personaReaderService.readPersonasFromExcel( "persona.xlsx" );
+    }
 }
