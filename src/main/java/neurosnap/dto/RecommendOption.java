@@ -5,11 +5,15 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Data
 @Builder
 @NoArgsConstructor
+@Getter
+@Setter
 @AllArgsConstructor
 @JsonPropertyOrder({ "planId", "goal", "emi", "tenure", "interestRate", "savingsPerMonth", "totalSavings", "fees", "breakEvenMonths", "confidence", "isBest", "reason" })
 public class RecommendOption {

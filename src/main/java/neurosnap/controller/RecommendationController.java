@@ -32,7 +32,8 @@ public class RecommendationController
 
     @PostMapping("/recommend")
     public ResponseEntity<?> recommendOptions(@RequestBody RecommendRequest request,
-            @RequestHeader( value = "persona-id", required = false ) final String personaId) {
+            @RequestHeader( value = "persona-id", required = false ) final String personaId) throws Exception
+    {
 
 
         List<String> errors = refiInputValidator.validate(request, personaId);
