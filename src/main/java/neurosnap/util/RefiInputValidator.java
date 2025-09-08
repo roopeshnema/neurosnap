@@ -20,8 +20,8 @@ public class RefiInputValidator {
             errors.add("Loan amount must be between $300 and $5000.");
         }
 
-        if (requstObject.getTenure() < 12 || requstObject.getTenure() > 60) {
-            errors.add("Tenure must be between 12 and 60 months.");
+        if (requstObject.getTenure() < 12 || requstObject.getTenure() > 360) {
+            errors.add("Tenure must be between 12 and 360 months.");
         }
 
         if (requstObject.getIncomeBand() == null || !isValidIncomeBand(requstObject.getIncomeBand())) {

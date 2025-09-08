@@ -15,6 +15,8 @@ import neurosnap.dto.rules.PaymentHistoryRule;
 import neurosnap.util.RefiCalculator;
 import org.springframework.stereotype.Service;
 
+import static java.util.Collections.max;
+
 @Service
 public class RecommendationService
 {
@@ -127,7 +129,8 @@ public class RecommendationService
         lowerOption.setReason( "Extends tenor to reduce monthly burden; good for lower income-band or irregular payers." );
         lowerOption.setTenure( moreTenure );
         lowerOption.setInterestRate( lowerRate );
-
+        //savingsPerMonth and  totalSavings
+        lowerOption.setBreakEvenMonths(getBreakEvenMonths());
         plans.add(lowerOption);
         /*
         plans.add(new RefinancePlan("REFI2", "BALANCED", round(emiBalanced), balancedTenure,
@@ -210,4 +213,30 @@ public class RecommendationService
     {
         return personaReaderService.readPersonasFromExcel( "persona.xlsx" );
     }
+
+    private int getTotalSavings () {
+       // Current loan monthly payment: $2,000
+      //  Remaining term: 20 years (240 months)
+      //  Refinanced monthly payment: $1,700
+      //  New loan term: 30 years (360 months)
+     //   savingsPerMonth = 2000 - 1700 = $300
+    //return( (2000 * 240) - (1700 * 360));
+    //         = 480,000 - 612,000
+   //             = -$132,000 (Loss)
+   //even though you save $300/month, you're paying for 10 extra years, resulting in no total savings, but actually a loss. This is why total savings must consider full loan lifetime.
+   //else  totalSavings = savingsPerMonth × refinancedLoanTermInMonths
+     return 300*60;
+    }
+
+    private double getSavingsPerMonth () {
+        // Current loan monthly payment: $2,000
+        //  Refinanced monthly payment: $1,700
+        return 2000 - 1700;
+
+    }
+    private int getBreakEvenMonths(){
+        //  breakEvenMonths = fees -totalRefinanceCosts / savingsPerMonth
+        return  500 / 300;
+    }
+
 }
