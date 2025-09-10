@@ -1,16 +1,15 @@
 package neurosnap.service;
 
-import java.io.File;
-import java.io.FileInputStream;
+import neurosnap.dto.Persona;
+import org.apache.poi.ss.usermodel.*;
+import org.springframework.stereotype.Service;
+
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import neurosnap.dto.Persona;
-import org.apache.poi.ss.usermodel.*;
-import org.springframework.stereotype.Service;
 
 @Service
 public class PersonaReaderService
@@ -44,7 +43,7 @@ public class PersonaReaderService
 
                 persona.setPersonaId( row.getCell( 0 ).getStringCellValue() );
                 persona.setPersonaName( row.getCell( 1 ).getStringCellValue() );
-                persona.setIncome( row.getCell( 2 ).getNumericCellValue() );
+                persona.setIncome( row.getCell( 2 ).getStringCellValue() );
                 persona.setPaymentBehavior( row.getCell( 3 ).getStringCellValue() );
                 persona.setRefiExperience( row.getCell( 4 ).getStringCellValue() );
                 persona.setCreditScore( ( int ) row.getCell( 5 ).getNumericCellValue() );
@@ -54,6 +53,13 @@ public class PersonaReaderService
                 persona.setPaymentHistory( row.getCell( 9 ).getStringCellValue() );
                 persona.setDob(setDateOfBirth(row.getCell( 10 )));
                 persona.setSsn( (int) row.getCell( 11 ).getNumericCellValue() );
+                persona.setMobileNumber((long)row.getCell( 12 ).getNumericCellValue());
+                persona.setVerificationCode((int)row.getCell( 13 ).getNumericCellValue());
+                persona.setExistingTenure((int)row.getCell( 14 ).getNumericCellValue());
+                persona.setExistingEmi( row.getCell( 15 ).getNumericCellValue());
+                persona.setBankName(row.getCell( 16 ).getStringCellValue());
+                persona.setCardNumber((long) row.getCell( 17 ).getNumericCellValue());
+                persona.setMinimumRefinanceAmt( row.getCell( 18 ).getNumericCellValue());
 
                 personas.add( persona );
             }

@@ -106,7 +106,7 @@ public class RecommendationService
         int baseTenure = input.getTenure();
 
         // Apply rules and adjust the tenure
-        int revisedTenure = getAdjustedTenure(baseTenure, input.getGoal(), input.getIncomeBand());
+        int revisedTenure = 12;//to be corrected getAdjustedTenure(baseTenure, input.getGoal(), input.getIncomeBand());
 
         // Apply rules and adjust the rate
         double revisedRate = getAdjustedRate(baseRate, persona.getPaymentHistory(), getConfidence(persona.getCreditScore()));
@@ -205,8 +205,8 @@ public class RecommendationService
         // Simple logic: higher credit score + disciplined behavior => higher %
         int base = persona.getCreditScore() / 10; // scale 0–100
         if (persona.getPaymentHistory().equals( "DISCIPLINED" )) base += 10;
-        if (goal.equals("LOWER_EMI") && persona.getIncome() < 50000) base += 5;
-        if (goal.equals("FASTER_CLOSURE") && persona.getIncome() > 100000) base += 5;
+     /*   if (goal.equals("LOWER_EMI") && persona.getIncome() < 50000) base += 5;
+        if (goal.equals("FASTER_CLOSURE") && persona.getIncome() > 100000) base += 5;*/
         return Math.min(100, base);
     }
 

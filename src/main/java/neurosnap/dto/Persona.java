@@ -9,7 +9,7 @@ public class Persona
 {
     private String personaId;
     private String personaName;
-    private double income;
+    private String income;
     private String paymentBehavior;
     private String refiExperience;
     private int creditScore;
@@ -19,4 +19,12 @@ public class Persona
     private String paymentHistory;
     private String dob;
     private int ssn;
+    private Long  mobileNumber;
+    private int verificationCode;
+    private int existingTenure;
+    private double existingEmi;
+    private String bankName;
+    private Long cardNumber;
+    private double MinimumRefinanceAmt;
+
 }

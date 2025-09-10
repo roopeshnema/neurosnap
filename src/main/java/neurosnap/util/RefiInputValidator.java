@@ -20,16 +20,8 @@ public class RefiInputValidator {
             errors.add("Loan amount must be between $300 and $5000.");
         }
 
-        if (requstObject.getTenure() < 12 || requstObject.getTenure() > 360) {
-            errors.add("Tenure must be between 12 and 360 months.");
-        }
-
-        if (requstObject.getIncomeBand() == null || !isValidIncomeBand(requstObject.getIncomeBand())) {
-            errors.add("Income band must be one of: LOW, MEDIUM, HIGH.");
-        }
-
-        if (requstObject.getGoal() == null || !isValidGoal(requstObject.getGoal())) {
-            errors.add("Goal must of one of : LOWER_EMI, BALANCED, FASTER_CLOSURE");
+        if (requstObject.getTenure() < 1 || requstObject.getTenure() > 12) {
+            errors.add("Tenure must be between 1 and 12 months.");
         }
 
         if (personaId == null || personaId.isEmpty()) {

@@ -14,9 +14,6 @@ public class RecommendRequest {
 
         private int tenure;
 
-        @JsonAlias({"income_band"})
-        private String incomeBand;
-
-        private String goal;
+        private String frequency;
 
 }

@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import java.util.Optional;
+import java.util.UUID;
+
 import neurosnap.dto.Persona;
 import neurosnap.dto.RecommendOptionsResponse;
 import neurosnap.dto.RecommendRequest;
@@ -45,6 +47,12 @@ public class RecommendationController
             return ResponseEntity
                     .badRequest()
                     .body(Map.of("errors", errors));
+
+           /* return ResponseEntity.badRequest().body(Map.of("error", Map.of(
+                    "code", "VALIDATION_ERROR",
+                    "message", String.join("; ", errors),
+                    "requestId", UUID.randomUUID().toString()
+            )));*/
         }
 
         RecommendOptionsResponse response = recommendationService.getRecommendations(request, personaId);
