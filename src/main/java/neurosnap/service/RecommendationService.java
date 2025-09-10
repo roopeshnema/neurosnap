@@ -1,9 +1,9 @@
 package neurosnap.service;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import neurosnap.client.ChatGptClient;
 import neurosnap.dto.Persona;
 import neurosnap.dto.RecommendOption;
 import neurosnap.dto.RecommendOptionsResponse;
@@ -24,10 +24,13 @@ public class RecommendationService
 
     private final RulesReaderService rulesReaderService;
 
-    public RecommendationService( PersonaReaderService personaReaderService, RulesReaderService rulesReaderService )
+    private final ChatGptClient chatGptClient;
+
+    public RecommendationService( PersonaReaderService personaReaderService, RulesReaderService rulesReaderService, ChatGptClient chatGptClient )
     {
         this.personaReaderService = personaReaderService;
         this.rulesReaderService = rulesReaderService;
+        this.chatGptClient = chatGptClient;
     }
 
     public RecommendOptionsResponse getRecommendations(RecommendRequest request, String personaId ) throws Exception
@@ -44,6 +47,8 @@ public class RecommendationService
 
 
       //  return Arrays.asList(option1, option2, option3);
+       // chatGptClient.sendPrompt( "Refinance options for Lower EMI / Faster Closure / Balanced" );
+       // chatGptClient.sendPrompt( "Refinance options for Lower EMI / Faster Closure / Balanced" );
         return populateRecommendOptionsResponse();
     }
 
