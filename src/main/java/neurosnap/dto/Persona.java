@@ -17,4 +17,6 @@ public class Persona
     private double existingInterestRate;
     private double existingPendingAmount;
     private String paymentHistory;
+    private String dob;
+    private int ssn;
 }

@@ -3,14 +3,13 @@ package neurosnap.service;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import neurosnap.dto.Persona;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -53,6 +52,8 @@ public class PersonaReaderService
                 persona.setExistingInterestRate( row.getCell( 7 ).getNumericCellValue() );
                 persona.setExistingPendingAmount( row.getCell( 8 ).getNumericCellValue() );
                 persona.setPaymentHistory( row.getCell( 9 ).getStringCellValue() );
+                persona.setDob(setDateOfBirth(row.getCell( 10 )));
+                persona.setSsn( (int) row.getCell( 11 ).getNumericCellValue() );
 
                 personas.add( persona );
             }
@@ -63,5 +64,11 @@ public class PersonaReaderService
         }
 
         return personas;
+    }
+
+    private String setDateOfBirth(Cell cell) {
+        Date dob = cell.getDateCellValue();
+        SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+        return sdf.format(dob);
     }
 }
