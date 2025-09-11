@@ -43,9 +43,10 @@ public class RecommendationService
     {
 
         List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona.xlsx" );
-        Optional<Persona> personaResult = personaList.stream()
-                .filter(p -> p.getPersonaId().equals(personaId))
-                .findFirst();
+        Optional<Persona> personaResult = Optional.ofNullable( personaList.stream()
+                .filter( p -> p.getPersonaId().equals( personaId ) )
+                .findFirst()
+                .orElseThrow( () -> new BadRequestException( "Unknown persona-id: " + personaId ) ) );
         Persona persona = personaResult.get();
 
 
@@ -56,9 +57,6 @@ public class RecommendationService
 
     public RecommendOptionsResponse getExamples(RecommendRequest request, String personaId ) throws Exception
     {
-
-
-
         //  return Arrays.asList(option1, option2, option3);
         return populateRecommendOptionsResponse();
     }
@@ -203,7 +201,7 @@ public class RecommendationService
 
     private double baseApr( Persona persona )
     {
-        if (persona.getCreditScore() >= 750 && "DISCIPLINED".equals(persona.getPaymentHistory())) return 10.5;
+        if (persona.getCreditScore() >= 750 && PaymentHistoryRule.PaymentHistoryType.DISCIPLINED.toString().equals(persona.getPaymentHistory())) return 10.5;
         if (persona.getCreditScore() >= 650) return 16.0;
         return 24.0;
 
