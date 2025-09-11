@@ -1,9 +1,7 @@
 package neurosnap.service;
 
-
 import java.util.ArrayList;
 import java.util.List;
-
 import java.util.Optional;
 import neurosnap.client.ChatGptClient;
 import neurosnap.dto.Persona;

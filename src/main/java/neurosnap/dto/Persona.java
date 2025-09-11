@@ -19,4 +19,12 @@ public class Persona
     private String paymentHistory;
     private String dob;
     private int ssn;
+    private Long  mobileNumber;
+    private int verificationCode;
+    private int existingTenure;
+    private double existingEmi;
+    private String bankName;
+    private Long cardNumber;
+    private double MinimumRefinanceAmt;
+
 }
