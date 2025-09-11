@@ -44,7 +44,7 @@ public class PersonaReaderService
 
                 persona.setPersonaId( row.getCell( 0 ).getStringCellValue() );
                 persona.setPersonaName( row.getCell( 1 ).getStringCellValue() );
-                persona.setIncome( row.getCell( 2 ).getNumericCellValue() );
+                persona.setIncome( row.getCell( 2 ).getStringCellValue() );
                 persona.setPaymentBehavior( row.getCell( 3 ).getStringCellValue() );
                 persona.setRefiExperience( row.getCell( 4 ).getStringCellValue() );
                 persona.setCreditScore( ( int ) row.getCell( 5 ).getNumericCellValue() );

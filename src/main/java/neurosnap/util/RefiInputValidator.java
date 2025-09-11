@@ -24,13 +24,13 @@ public class RefiInputValidator {
             errors.add("Tenure must be between 12 and 360 months.");
         }
 
-        if (requstObject.getIncomeBand() == null || !isValidIncomeBand(requstObject.getIncomeBand())) {
-            errors.add("Income band must be one of: LOW, MEDIUM, HIGH.");
-        }
-
-        if (requstObject.getGoal() == null || !isValidGoal(requstObject.getGoal())) {
-            errors.add("Goal must of one of : LOWER_EMI, BALANCED, FASTER_CLOSURE");
-        }
+//        if (requstObject.getIncomeBand() == null || !isValidIncomeBand(requstObject.getIncomeBand())) {
+//            errors.add("Income band must be one of: LOW, MEDIUM, HIGH.");
+//        }
+//
+//        if (requstObject.getGoal() == null || !isValidGoal(requstObject.getGoal())) {
+//            errors.add("Goal must of one of : LOWER_EMI, BALANCED, FASTER_CLOSURE");
+//        }
 
         if (personaId == null || personaId.isEmpty()) {
             errors.add("persona-id header is required");

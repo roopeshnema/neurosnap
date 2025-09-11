@@ -9,7 +9,7 @@ public class Persona
 {
     private String personaId;
     private String personaName;
-    private double income;
+    private String income;
     private String paymentBehavior;
     private String refiExperience;
     private int creditScore;

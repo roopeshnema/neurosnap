@@ -1,7 +1,9 @@
 package neurosnap.service;
 
+
 import java.util.ArrayList;
 import java.util.List;
+
 import java.util.Optional;
 import neurosnap.client.ChatGptClient;
 import neurosnap.dto.Persona;
@@ -15,8 +17,6 @@ import neurosnap.dto.rules.PaymentHistoryRule;
 import neurosnap.util.RefiCalculator;
 import org.springframework.stereotype.Service;
 
-import static java.util.Collections.max;
-
 @Service
 public class RecommendationService
 {
@@ -25,6 +25,13 @@ public class RecommendationService
     private final RulesReaderService rulesReaderService;
 
     private final ChatGptClient chatGptClient;
+
+    private final double processingFee = 100;
+    private final double taxFee = processingFee / 10;
+
+    private final double maxLoanAmountLimit = 5000;
+
+    private final double minLoanAmountLimit = 300;
 
     public RecommendationService( PersonaReaderService personaReaderService, RulesReaderService rulesReaderService, ChatGptClient chatGptClient )
     {
@@ -42,26 +49,14 @@ public class RecommendationService
                 .findFirst();
         Persona persona = personaResult.get();
 
-        rulesReaderService.loadRules( "rules.xlsx" );
 
+        //rulesReaderService.loadRules( "rules.xlsx" );
+        return generatePlans(persona, request);
 
-
-      //  return Arrays.asList(option1, option2, option3);
-       // chatGptClient.sendPrompt( "Refinance options for Lower EMI / Faster Closure / Balanced" );
-       // chatGptClient.sendPrompt( "Refinance options for Lower EMI / Faster Closure / Balanced" );
-        return populateRecommendOptionsResponse();
     }
 
     public RecommendOptionsResponse getExamples(RecommendRequest request, String personaId ) throws Exception
     {
-
-        List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona.xlsx" );
-        Optional<Persona> personaResult = personaList.stream()
-                .filter(p -> p.getPersonaId().equals(personaId))
-                .findFirst();
-        Persona persona = personaResult.get();
-
-        rulesReaderService.loadRules( "rules.xlsx" );
 
 
 
@@ -94,72 +89,136 @@ public class RecommendationService
     }
 
 
-    public RecommendOptionsResponse generatePlans(Persona persona, RecommendRequest input) {
+    public RecommendOptionsResponse generatePlans(Persona persona, RecommendRequest request) throws Exception
+    {
         List<RecommendOption> plans = new ArrayList<>();
 
-        double principal = input.getLoanAmount();
+        // Calculating Fee
+        double fees = processingFee + taxFee;
 
-        // base annual rate from persona (could be overridden by rules)
-        double baseRate = persona.getExistingInterestRate();
-
-        // base tenure
-        int baseTenure = input.getTenure();
-
-        // Apply rules and adjust the tenure
-        int revisedTenure = getAdjustedTenure(baseTenure, input.getGoal(), input.getIncomeBand());
-
-        // Apply rules and adjust the rate
-        double revisedRate = getAdjustedRate(baseRate, persona.getPaymentHistory(), getConfidence(persona.getCreditScore()));
-
-        // define candidate tenures and slight rate adjustments per goal (can be driven by rules)
-        int moreTenure = revisedTenure + 12;               // extend to lower EMI
-        int balancedTenure = revisedTenure;                 // keep same
-        int fasterTenure = Math.max(12, revisedTenure - 12);// shorten to close faster
-
-        double lowerRate = Math.max(0.0, revisedRate - 0.5); // small discount to incentivize refinance
-        double balancedRate = revisedRate;
-        double fasterRate = revisedRate; // could be same or slightly different
-
-
-        double emiBalanced = RefiCalculator.calculateEMI(principal, balancedRate, balancedTenure);
-        double emiFaster = RefiCalculator.calculateEMI(principal, fasterRate, fasterTenure);
-
-        RecommendOption lowerOption  = new RecommendOption();
-        lowerOption.setPlanId( "REFI-1" );
-        lowerOption.setFees( 500 );
-        lowerOption.setBest( false );
-        lowerOption.setEmi( ( int) RefiCalculator.calculateEMI(principal, lowerRate, moreTenure) );
-        lowerOption.setGoal( "LOWER_EMI" );
-        lowerOption.setConfidence( calculateConfidence(persona, "LOWER_EMI") );
-        lowerOption.setReason( "Extends tenor to reduce monthly burden; good for lower income-band or irregular payers." );
-        lowerOption.setTenure( moreTenure );
-        lowerOption.setInterestRate( lowerRate );
-        //savingsPerMonth and  totalSavings
-        lowerOption.setBreakEvenMonths(getBreakEvenMonths());
-        plans.add(lowerOption);
-        /*
-        plans.add(new RefinancePlan("REFI2", "BALANCED", round(emiBalanced), balancedTenure,
-                calculateConfidence(persona, "BALANCED"),
-                "Keeps tenure steady and uses current rate — balances cost and affordability.", false));
-
-        plans.add(new RefinancePlan("REFI3", "FASTER_CLOSURE", round(emiFaster), fasterTenure,
-                calculateConfidence(persona, "FASTER_CLOSURE")
-                "Shortens tenor to save interest — increases EMI; suitable if cashflow allows.", false));
-
-        // mark the plan with highest confidence as best
-        RecommendOption best = plans.stream()
-                .max( Comparator.comparingInt(RecommendOption))
-                .orElse(null);
-        if (best != null) {
-            best.setBest(true);
-            // ensure others are false
-            plans.forEach(p -> { if (!p.equals(best)) p.setBest(false); });
+        // Validating user input amount with minRequired amount.
+        double minRequired = persona.getExistingPendingAmount() + fees;
+        if (request.getLoanAmount() < minRequired) {
+            throw new IllegalArgumentException("Requested amount must cover pending balance + fees (min $" + Math.round(minRequired) + ")");
         }
 
-        return new RecommendationResponse(persona.getPersonaId(), "v1.0.0", plans);
-        */
+        // Calculating Principal
+        double principal = Math.max(minRequired, Math.min(request.getLoanAmount(), maxLoanAmountLimit));
+        principal = Math.max(principal, minLoanAmountLimit);
 
-        return null;
+        // normalizeTenure
+        int baseTenure = normalizeTenure(request.getTenure());
+
+        // Calculate APR
+        double apr = baseApr(persona) + adjustAprByPaymentHistory(persona.getPaymentHistory())
+                + adjustAprByIncomeBand(persona.getIncome());
+
+        double aprFaster = Math.max(0, apr - 0.5); // incentive
+        // Baseline (balanced)
+        int tBalanced = baseTenure;
+        double emiBalanced = RefiCalculator.calculateEMI(principal, apr, tBalanced);
+
+        // LOWER_EMI
+        int tLower = 12;
+        double emiLower = RefiCalculator.calculateEMI(principal, apr, tLower);
+        double savLower = Math.max(0, emiBalanced - emiLower);
+        plans.add(RecommendOption.builder()
+                .planId("REFI1").goal("LOWER_EMI").tenure(tLower)
+                .interestRate(round2(apr)).emi((int)Math.round(emiLower))
+                .savingsPerMonth(round2(savLower))
+                .totalSavings(round2(savLower * tLower))
+                .fees(round2(fees)).breakEvenMonths((int)Math.ceil(fees / Math.max(1.0, savLower)))
+                .confidence(calcConfidence(persona, "LOWER_EMI"))
+                .isBest(false)
+                .reason(chatGptClient.sendPrompt(reasonTemplate("LOWER_EMI", persona.getPaymentHistory(), savLower, tLower)))
+                .build());
+
+        // BALANCED
+        plans.add(RecommendOption.builder()
+                .planId("REFI2").goal("BALANCED").tenure(tBalanced)
+                .interestRate(round2(apr)).emi((int)Math.round(emiBalanced))
+                .savingsPerMonth(0).totalSavings(0)
+                .fees(round2(fees)).breakEvenMonths(0)
+                .confidence(calcConfidence(persona, "BALANCED"))
+                .isBest(false)
+                .reason(chatGptClient.sendPrompt(reasonTemplate("BALANCED", persona.getPaymentHistory(), 0, tBalanced)))
+                .build());
+
+        // FASTER_CLOSURE
+        int tFaster = Math.max(6, baseTenure - 12);
+        double emiFaster = RefiCalculator.calculateEMI(principal, aprFaster, tFaster);
+        double savFaster = Math.max(0, emiBalanced - emiFaster); // usually 0 because EMI is higher
+        plans.add(RecommendOption.builder()
+                .planId("REFI3").goal("FASTER_CLOSURE").tenure(tFaster)
+                .interestRate(round2(aprFaster)).emi((int)Math.round(emiFaster))
+                .savingsPerMonth(round2(savFaster)).totalSavings(round2(savFaster * tFaster))
+                .fees(round2(fees)).breakEvenMonths((int)Math.ceil(fees / Math.max(1.0, savFaster)))
+                .confidence(calcConfidence(persona, "FASTER_CLOSURE"))
+                .isBest(false)
+                .reason(chatGptClient.sendPrompt(reasonTemplate("FASTER_CLOSURE", persona.getPaymentHistory(), savFaster, tFaster)))
+                .build());
+
+
+        // best-fit
+        RecommendOption best = plans.get(1); // default BALANCED
+        if ("LOW".equals( persona.getIncome() ) || "IRREGULAR".equals(persona.getPaymentHistory())) best = plans.get(0);
+        else if ("HIGH".equals( persona.getIncome() ) && "DISCIPLINED".equals(persona.getPaymentHistory())) best = plans.get(2);
+        best.setBest( true );
+
+        return RecommendOptionsResponse.builder()
+                .personaId(persona.getPersonaId())
+                .modelVersion("v1.0.0")
+                .recommendations(plans.toArray(new RecommendOption[0]))
+                .build();
+    }
+
+    private String reasonTemplate(String goal, String behavior, double savingsPerMonth, int tenure) {
+        if ("LOWER_EMI".equals(goal))
+            return "Lower EMI saves $" + Math.round(savingsPerMonth) + "/month; fits your " + behavior.toLowerCase() + " history.";
+        if ("FASTER_CLOSURE".equals(goal))
+            return "Higher EMI closes in " + tenure + " months; reduces total interest.";
+        return "Keeps payments steady while controlling overall interest.";
+    }
+
+    private double round2( double apr )
+    {
+        return Math.round(apr*100.0)/100.0;
+    }
+
+    private double baseApr( Persona persona )
+    {
+        if (persona.getCreditScore() >= 750 && "DISCIPLINED".equals(persona.getPaymentHistory())) return 10.5;
+        if (persona.getCreditScore() >= 650) return 16.0;
+        return 24.0;
+
+    }
+
+    private double adjustAprByIncomeBand(String incomeBand) {
+
+        return switch (incomeBand.toUpperCase()){
+            case "LOW" -> +0.7; case "HIGH" -> -0.7; default -> 0;
+        };
+    }
+    private double adjustAprByPaymentHistory(String history){
+        return switch (history){
+            case "IRREGULAR" -> +1.5;
+            case "MOSTLY_DISCIPLINED" -> +0.5;
+            default -> 0;
+        };
+    }
+    private int calcConfidence(Persona persona, String goal) {
+        int base = clamp(persona.getCreditScore() / 10, 40, 95);
+        if ("IRREGULAR".equals(persona.getPaymentHistory())) base -= 6;
+        if ("LOWER_EMI".equals(goal) && "LOW".equals( persona.getIncome())) base += 5;
+        if ("FASTER_CLOSURE".equals(goal) && "HIGH".equals( persona.getIncome()) ) base += 5;
+        return clamp(base, 40, 95);
+    }
+
+    private int clamp(int v, int lo, int hi){ return Math.max(lo, Math.min(hi, v)); }
+
+    private int normalizeTenure( int tenure )
+    {
+        return (tenure==6||tenure==12) ? tenure : 12;
     }
 
     private String getConfidence( int creditScore )
@@ -205,8 +264,7 @@ public class RecommendationService
         // Simple logic: higher credit score + disciplined behavior => higher %
         int base = persona.getCreditScore() / 10; // scale 0–100
         if (persona.getPaymentHistory().equals( "DISCIPLINED" )) base += 10;
-        if (goal.equals("LOWER_EMI") && persona.getIncome() < 50000) base += 5;
-        if (goal.equals("FASTER_CLOSURE") && persona.getIncome() > 100000) base += 5;
+        if (persona.getIncome().equals( "HIGH" )) base += 5;
         return Math.min(100, base);
     }
 

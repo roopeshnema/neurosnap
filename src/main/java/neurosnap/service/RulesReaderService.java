@@ -86,4 +86,8 @@ public class RulesReaderService
         return paymentHistoryRules.get( paymentHistory );
     }
 
+    public Map<String, IncomeRule> getIncomeRules(){
+        return this.incomeRules;
+    }
+
 }
