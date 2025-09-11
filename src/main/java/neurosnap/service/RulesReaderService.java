@@ -90,4 +90,12 @@ public class RulesReaderService
         return this.incomeRules;
     }
 
+    public Map<String, ConfidenceRule> getConfidenceRules(){
+        return this.confidenceRules;
+    }
+
+    public Map<String, PaymentHistoryRule> getPaymentHistoryRules(){
+        return this.paymentHistoryRules;
+    }
+
 }

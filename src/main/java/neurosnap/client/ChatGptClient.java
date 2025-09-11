@@ -56,7 +56,7 @@ public class ChatGptClient
                 .build();
 
         System.out.println("chat gpt request : " + request.toString());
-
+        String responseContent = null;
         try {
             Response response = client.newCall( request ).execute();
             if (!response.isSuccessful()) {
@@ -67,7 +67,7 @@ public class ChatGptClient
                 System.out.println("RESPONSE BODY END : " );
 
             JSONObject jsonResponse = new JSONObject( finalResp );
-            String responseContent = jsonResponse
+            responseContent = jsonResponse
                     .getJSONArray( "choices" )
                     .getJSONObject( 0 )
                     .getJSONObject( "message" )
@@ -75,12 +75,14 @@ public class ChatGptClient
 
 
             System.out.println( "Response: " + responseContent );
+            responseContent = responseContent.replace( "```json", "" ).replace( "```", "" );
+
             return responseContent;
         } catch ( Exception e ) {
             System.out.println("Something went wrong");
         }
 
-        return prompt;
+        return responseContent;
     }
 
     private String toJson(String s){ return "\""+ s.replace("\"", "\\\"") +"\""; }

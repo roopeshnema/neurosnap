@@ -1,7 +1,9 @@
 package neurosnap.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import neurosnap.client.ChatGptClient;
 import neurosnap.dto.Persona;
@@ -51,7 +53,8 @@ public class RecommendationService
 
 
         //rulesReaderService.loadRules( "rules.xlsx" );
-        return generatePlans(persona, request);
+        //return generatePlans(persona, request);
+        return generatePlansUsingAI( persona, request);
 
     }
 
@@ -66,19 +69,21 @@ public class RecommendationService
         response.setPersonaId("P_EARLY_PAYER");
         response.setModelVersion("v1.0.0");
         RecommendOption option1 = new RecommendOption(
-                "REFI1", RecommendOption.GoalType.LOWER_EMI, 18000, 72, 5.9, 1200, 14400, 500,
-                  82, true,
-                 "Because you always pay early and have strong credit, you qualify for a lower EMI with minimal risk."
+                "REFI1", RecommendOption.GoalType.LOWER_EMI, 18000, 72, 5.9, 1200, 14400,
+                  82,6,true,
+                 "Because you always pay early and have strong credit, you qualify for a lower EMI with minimal risk.",
+                1000,1500
         );
         RecommendOption option2 = new RecommendOption(
-                "REFI2", RecommendOption.GoalType.BALANCED,  20000,  60,  6.5,  0,  0, 0,
-                 74,  false,
-                "Balanced plan keeps your payments stable while slightly reducing total interest."
+                "REFI2", RecommendOption.GoalType.BALANCED,  20000,  60,  6.5,  0,  0,
+                 74,6,  false,
+                "Balanced plan keeps your payments stable while slightly reducing total interest.",
+                2000,1000
         );
         RecommendOption option3 = new RecommendOption(
-               "REFI3", RecommendOption.GoalType.FASTER_CLOSURE, 22000,  48,  5.5,  1000,  12000,
-                500,  68, false,
-                "Higher EMI but lets you close the loan faster and save $50,000 in interest."
+               "REFI3", RecommendOption.GoalType.FASTER_CLOSURE, 22000,  48,  5.5,  1000,  12000,  68,6, false,
+                "Higher EMI but lets you close the loan faster and save $50,000 in interest.",
+                3000, 1500
         );
         RecommendOption[] optionArray =  new RecommendOption[] { option1, option2, option3 };
         response.setRecommendations(optionArray);
@@ -127,10 +132,10 @@ public class RecommendationService
                 .interestRate(round2(apr)).emi((int)Math.round(emiLower))
                 .savingsPerMonth(round2(savLower))
                 .totalSavings(round2(savLower * tLower))
-                .fees(round2(fees))
+                //.fees(round2(fees))
                 //.breakEvenMonths((int)Math.ceil(fees / Math.max(1.0, savLower)))
                 .confidence(calcConfidence(persona, "LOWER_EMI"))
-                .isBest(false)
+                .best(false)
                 //.reason(chatGptClient.sendPrompt(reasonTemplate("LOWER_EMI", persona.getPaymentHistory(), savLower, tLower)))
                 .reason(reasonTemplate("LOWER_EMI", persona.getPaymentHistory(), savLower, tLower))
                 .build());
@@ -144,10 +149,10 @@ public class RecommendationService
                 .emi((int)Math.round(emiBalanced))
                 .savingsPerMonth(0)
                 .totalSavings(0)
-                .fees(round2(fees))
+                //.fees(round2(fees))
                 //.breakEvenMonths(0)
                 .confidence(calcConfidence(persona, "BALANCED"))
-                .isBest(false)
+                .best(false)
                 //.reason(chatGptClient.sendPrompt(reasonTemplate("BALANCED", persona.getPaymentHistory(), 0, tBalanced)))
                 .reason( reasonTemplate("BALANCED", persona.getPaymentHistory(), 0, tBalanced))
                 .build());
@@ -164,10 +169,10 @@ public class RecommendationService
                 .emi((int)Math.round(emiFaster))
                 .savingsPerMonth(round2(savFaster))
                 .totalSavings(round2(savFaster * tFaster))
-                .fees(round2(fees))
+                //.fees(round2(fees))
                 //.breakEvenMonths((int)Math.ceil(fees / Math.max(1.0, savFaster)))
                 .confidence(calcConfidence(persona, "FASTER_CLOSURE"))
-                .isBest(false)
+                .best(false)
                 //.reason(chatGptClient.sendPrompt(reasonTemplate("FASTER_CLOSURE", persona.getPaymentHistory(), savFaster, tFaster)))
                         .reason( reasonTemplate("FASTER_CLOSURE", persona.getPaymentHistory(), savFaster, tFaster))
                 .build());
@@ -184,6 +189,81 @@ public class RecommendationService
                 .modelVersion("v1.0.0")
                 .recommendations(plans.toArray(new RecommendOption[0]))
                 .build();
+    }
+
+    public RecommendOptionsResponse generatePlansUsingAI(Persona persona, RecommendRequest request) throws Exception
+    {
+
+        List<RecommendOption> plans = new ArrayList<>();
+
+        // Calculating Fee
+        double fees = processingFee + taxFee;
+
+        // Validating user input amount with minRequired amount.
+        double minRequired = persona.getExistingPendingAmount() + fees;
+        if (request.getLoanAmount() < minRequired) {
+            throw new BadRequestException("Requested amount must cover pending balance + fees (min $" + Math.round(minRequired) + ")");
+        }
+
+
+        // Calculating Principal
+        //double principal = Math.max(minRequired, Math.min(request.getLoanAmount(), maxLoanAmountLimit));
+        //principal = Math.max(principal, minLoanAmountLimit);
+
+        double principal = request.getLoanAmount() - fees;
+
+        // normalizeTenure
+        int baseTenure = normalizeTenure(request.getTenure());
+
+        // Calculate APR
+        double apr = baseApr(persona);
+
+        ObjectMapper mapper = new ObjectMapper();
+        String personaJson = mapper.writeValueAsString(persona);
+
+        rulesReaderService.loadRules( "rules.xlsx" );
+        Map<String, IncomeRule> incomerules = rulesReaderService.getIncomeRules();
+        Map<String, ConfidenceRule> confidenceRules = rulesReaderService.getConfidenceRules();
+        Map<String, PaymentHistoryRule> paymentHistoryRules = rulesReaderService.getPaymentHistoryRules();
+
+        String incomeRulesJson = mapper.writeValueAsString(incomerules);
+        String paymentHistoryRuleJson = mapper.writeValueAsString(paymentHistoryRules);
+        String confidenceRulesJson = mapper.writeValueAsString(confidenceRules);
+
+        String response  = chatGptClient.sendPrompt( "suggest 3 Refinance options for Lower EMI, Faster Closure, Balanced considering below inputs " +
+                "input :" + request +
+                "persona :" + personaJson +
+                "rules : " + incomeRulesJson + paymentHistoryRuleJson + confidenceRulesJson +
+                "rates : " + apr +
+                "tenure : " + baseTenure +
+                "principal : " + principal  +
+                "output format JSON only:" + "{\n" +
+                "  \"modelVersion\": \"v1.0.0\",\n" +
+                "  \"personaId\":" + persona.getPersonaId() +"\n" +
+                "  \"demoMode\": true,\n" +
+                "  \"recommendations\": [\n" +
+                "    {\n" +
+                "      \"planId\": \"$$\",\n" +
+                "      \"goal\": \"$$\",\n" +
+                "      \"emi\": $$$,\n" +
+                "      \"tenure\": $$,\n" +
+                "      \"interestRate\": $$,\n" +
+                "      \"savingsPerMonth\": $$,\n" +
+                "      \"totalSavings\": $$,\n" +
+                "      \"totalLoanAmount\": $emi * tenure$,\n" +
+                "      \"disburseAmount\": $principal - existing pending amount from persona$,\n" +
+                "      \"breakEvenMonths\": $,\n" +
+                "      \"confidence\": $confidence % (0–100), based on persona + repayment behavior$,\n" +
+                "      \"best\": $$,\n" +
+                "      \"reason\": \"$$\"\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+
+
+        RecommendOptionsResponse finalResponse = mapper.readValue(response, RecommendOptionsResponse.class);
+
+        return finalResponse;
     }
 
     private String reasonTemplate(String goal, String behavior, double savingsPerMonth, int tenure) {

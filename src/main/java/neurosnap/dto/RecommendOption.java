@@ -32,7 +32,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 @JsonPropertyOrder({
         "planId", "goal", "emi", "tenure", "interestRate",
         "savingsPerMonth", "totalSavings", "fees",
-        "breakEvenMonths", "confidence", "isBest", "reason"
+        "breakEvenMonths", "confidence", "best", "reason"
 })
 public class RecommendOption {
 
@@ -58,19 +58,23 @@ public class RecommendOption {
     private double totalSavings;
 
     /** Processing/closing fees applied (USD). */
-    private double fees;
+    //private double fees;
 
     /** Breakeven period in months (fees ÷ savingsPerMonth). */
-    //private int breakEvenMonths;
+    private int breakEvenMonths;
 
     /** Confidence score (0–100) assigned by AI/logic engine. */
     private double confidence;
 
     /** Flag indicating if this plan is the best-fit recommendation. */
-    private boolean isBest;
+    private boolean best;
 
     /** Human-friendly explanation of why this plan was recommended. */
     private String reason;
+
+    private double totalLoanAmount;
+
+    private double disburseAmount;
 
     /**
      * Enum for refinance goals (ensures only valid values are used).
