@@ -13,6 +13,7 @@ import neurosnap.dto.rules.GoalRule;
 import neurosnap.dto.rules.IncomeRule;
 import neurosnap.dto.rules.PaymentHistoryRule;
 import neurosnap.util.RefiCalculator;
+import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -67,18 +68,18 @@ public class RecommendationService
         response.setPersonaId("P_EARLY_PAYER");
         response.setModelVersion("v1.0.0");
         RecommendOption option1 = new RecommendOption(
-                "REFI1", "LOWER_EMI", 18000, 72, 5.9, 1200, 14400, 500,
-                 6, 82, true,
+                "REFI1", RecommendOption.GoalType.LOWER_EMI, 18000, 72, 5.9, 1200, 14400, 500,
+                  82, true,
                  "Because you always pay early and have strong credit, you qualify for a lower EMI with minimal risk."
         );
         RecommendOption option2 = new RecommendOption(
-                "REFI2", "BALANCED",  20000,  60,  6.5,  0,  0, 0,0,
+                "REFI2", RecommendOption.GoalType.BALANCED,  20000,  60,  6.5,  0,  0, 0,
                  74,  false,
                 "Balanced plan keeps your payments stable while slightly reducing total interest."
         );
         RecommendOption option3 = new RecommendOption(
-               "REFI3", "FASTER_CLOSURE", 22000,  48,  5.5,  1000,  12000,
-                500, 12,  68, false,
+               "REFI3", RecommendOption.GoalType.FASTER_CLOSURE, 22000,  48,  5.5,  1000,  12000,
+                500,  68, false,
                 "Higher EMI but lets you close the loan faster and save $50,000 in interest."
         );
         RecommendOption[] optionArray =  new RecommendOption[] { option1, option2, option3 };
@@ -97,8 +98,9 @@ public class RecommendationService
         // Validating user input amount with minRequired amount.
         double minRequired = persona.getExistingPendingAmount() + fees;
         if (request.getLoanAmount() < minRequired) {
-            throw new IllegalArgumentException("Requested amount must cover pending balance + fees (min $" + Math.round(minRequired) + ")");
+            throw new BadRequestException("Requested amount must cover pending balance + fees (min $" + Math.round(minRequired) + ")");
         }
+
 
         // Calculating Principal
         double principal = Math.max(minRequired, Math.min(request.getLoanAmount(), maxLoanAmountLimit));
@@ -112,8 +114,9 @@ public class RecommendationService
                 + adjustAprByIncomeBand(persona.getIncome());
 
         double aprFaster = Math.max(0, apr - 0.5); // incentive
+
         // Baseline (balanced)
-        int tBalanced = baseTenure;
+        int tBalanced = Math.max( 6,baseTenure - 3);
         double emiBalanced = RefiCalculator.calculateEMI(principal, apr, tBalanced);
 
         // LOWER_EMI
@@ -121,25 +124,34 @@ public class RecommendationService
         double emiLower = RefiCalculator.calculateEMI(principal, apr, tLower);
         double savLower = Math.max(0, emiBalanced - emiLower);
         plans.add(RecommendOption.builder()
-                .planId("REFI1").goal("LOWER_EMI").tenure(tLower)
+                .planId("REFI1")
+                .goal( RecommendOption.GoalType.LOWER_EMI).tenure(tLower)
                 .interestRate(round2(apr)).emi((int)Math.round(emiLower))
                 .savingsPerMonth(round2(savLower))
                 .totalSavings(round2(savLower * tLower))
-                .fees(round2(fees)).breakEvenMonths((int)Math.ceil(fees / Math.max(1.0, savLower)))
+                .fees(round2(fees))
+                //.breakEvenMonths((int)Math.ceil(fees / Math.max(1.0, savLower)))
                 .confidence(calcConfidence(persona, "LOWER_EMI"))
                 .isBest(false)
-                .reason(chatGptClient.sendPrompt(reasonTemplate("LOWER_EMI", persona.getPaymentHistory(), savLower, tLower)))
+                //.reason(chatGptClient.sendPrompt(reasonTemplate("LOWER_EMI", persona.getPaymentHistory(), savLower, tLower)))
+                .reason(reasonTemplate("LOWER_EMI", persona.getPaymentHistory(), savLower, tLower))
                 .build());
 
         // BALANCED
         plans.add(RecommendOption.builder()
-                .planId("REFI2").goal("BALANCED").tenure(tBalanced)
-                .interestRate(round2(apr)).emi((int)Math.round(emiBalanced))
-                .savingsPerMonth(0).totalSavings(0)
-                .fees(round2(fees)).breakEvenMonths(0)
+                .planId("REFI2")
+                .goal( RecommendOption.GoalType.BALANCED)
+                .tenure(tBalanced)
+                .interestRate(round2(apr))
+                .emi((int)Math.round(emiBalanced))
+                .savingsPerMonth(0)
+                .totalSavings(0)
+                .fees(round2(fees))
+                //.breakEvenMonths(0)
                 .confidence(calcConfidence(persona, "BALANCED"))
                 .isBest(false)
-                .reason(chatGptClient.sendPrompt(reasonTemplate("BALANCED", persona.getPaymentHistory(), 0, tBalanced)))
+                //.reason(chatGptClient.sendPrompt(reasonTemplate("BALANCED", persona.getPaymentHistory(), 0, tBalanced)))
+                .reason( reasonTemplate("BALANCED", persona.getPaymentHistory(), 0, tBalanced))
                 .build());
 
         // FASTER_CLOSURE
@@ -147,13 +159,19 @@ public class RecommendationService
         double emiFaster = RefiCalculator.calculateEMI(principal, aprFaster, tFaster);
         double savFaster = Math.max(0, emiBalanced - emiFaster); // usually 0 because EMI is higher
         plans.add(RecommendOption.builder()
-                .planId("REFI3").goal("FASTER_CLOSURE").tenure(tFaster)
-                .interestRate(round2(aprFaster)).emi((int)Math.round(emiFaster))
-                .savingsPerMonth(round2(savFaster)).totalSavings(round2(savFaster * tFaster))
-                .fees(round2(fees)).breakEvenMonths((int)Math.ceil(fees / Math.max(1.0, savFaster)))
+                .planId("REFI3")
+                .goal( RecommendOption.GoalType.FASTER_CLOSURE)
+                .tenure(tFaster)
+                .interestRate(round2(aprFaster))
+                .emi((int)Math.round(emiFaster))
+                .savingsPerMonth(round2(savFaster))
+                .totalSavings(round2(savFaster * tFaster))
+                .fees(round2(fees))
+                //.breakEvenMonths((int)Math.ceil(fees / Math.max(1.0, savFaster)))
                 .confidence(calcConfidence(persona, "FASTER_CLOSURE"))
                 .isBest(false)
-                .reason(chatGptClient.sendPrompt(reasonTemplate("FASTER_CLOSURE", persona.getPaymentHistory(), savFaster, tFaster)))
+                //.reason(chatGptClient.sendPrompt(reasonTemplate("FASTER_CLOSURE", persona.getPaymentHistory(), savFaster, tFaster)))
+                        .reason( reasonTemplate("FASTER_CLOSURE", persona.getPaymentHistory(), savFaster, tFaster))
                 .build());
 
 
@@ -238,7 +256,7 @@ public class RecommendationService
         PaymentHistoryRule paymentHistoryRule = rulesReaderService.getPaymentHistoryRule( paymentHistory );
 
         rate = rate + ( confidenceRule != null ? confidenceRule.getRateDelta() : 0);
-        rate = rate + ( paymentHistoryRule != null ? paymentHistoryRule.getTenureRate() : 0);
+        rate = rate + ( paymentHistoryRule != null ? paymentHistoryRule.getRateDelta() : 0);
 
         return rate;
     }

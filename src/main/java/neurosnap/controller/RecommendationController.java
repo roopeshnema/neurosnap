@@ -11,6 +11,7 @@ import neurosnap.dto.RecommendOptionsResponse;
 import neurosnap.dto.RecommendRequest;
 import neurosnap.service.RecommendationService;
 import neurosnap.util.RefiInputValidator;
+import org.apache.coyote.BadRequestException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,7 +39,7 @@ public class RecommendationController
 
     @PostMapping("/recommend")
     public ResponseEntity<?> recommendOptions(@RequestBody RecommendRequest request,
-            @RequestHeader( value = "persona-id", required = false ) final String personaId) throws Exception
+            @RequestHeader( value = "persona-id", required = false ) final String personaId)
     {
 
 
@@ -46,19 +47,32 @@ public class RecommendationController
 
         if (!errors.isEmpty()) {
             // Return HTTP 400 with the error list
-            return ResponseEntity
+            /*return ResponseEntity
                     .badRequest()
                     .body(Map.of("errors", errors));
-
-           /* return ResponseEntity.badRequest().body(Map.of("error", Map.of(
+            */
+            return ResponseEntity.badRequest().body(Map.of("error", Map.of(
                     "code", "VALIDATION_ERROR",
                     "message", String.join("; ", errors),
                     "requestId", UUID.randomUUID().toString()
-            )));*/
+            )));
         }
 
-        RecommendOptionsResponse response = recommendationService.getRecommendations(request, personaId);
-        return ResponseEntity.ok(response);
+        try
+        {
+            RecommendOptionsResponse response = recommendationService.getRecommendations( request, personaId );
+            return ResponseEntity.ok( response );
+        } catch ( BadRequestException e ) {
+            return ResponseEntity.badRequest().body( Map.of("error", Map.of(
+                    "code", "VALIDATION_ERROR",
+                    "message", e.getMessage(),
+                    "requestId", UUID.randomUUID().toString()
+            )));
+        }
+        catch ( Exception e )
+        {
+            throw new RuntimeException( e );
+        }
     }
 
     @PostMapping("/example")

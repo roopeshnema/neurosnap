@@ -33,9 +33,9 @@ public class RulesReaderService
             for ( Row row : goalSheet) {
                 if (row.getRowNum() == 0) continue; // skip header
                 GoalRule gr = new GoalRule();
-                gr.setGoal(row.getCell(0).getStringCellValue());
+                gr.setGoal( GoalRule.GoalType.valueOf( row.getCell(0).getStringCellValue() ) );
                 gr.setTenureDelta((int) row.getCell(1).getNumericCellValue());
-                goalRules.put(gr.getGoal(), gr);
+                goalRules.put(gr.getGoal().toString(), gr);
             }
 
             // Sheet 2: Confidence vs Rate
@@ -43,9 +43,9 @@ public class RulesReaderService
             for (Row row : confSheet) {
                 if (row.getRowNum() == 0) continue;
                 ConfidenceRule cr = new ConfidenceRule();
-                cr.setConfidence(row.getCell(0).getStringCellValue());
+                cr.setConfidence( ConfidenceRule.ConfidenceLevel.valueOf( row.getCell(0).getStringCellValue() ) );
                 cr.setRateDelta(row.getCell(1).getNumericCellValue());
-                confidenceRules.put( cr.getConfidence(), cr );
+                confidenceRules.put( cr.getConfidence().toString(), cr );
             }
 
             // Sheet 3: Income bands
@@ -53,9 +53,9 @@ public class RulesReaderService
             for (Row row : incomeSheet) {
                 if (row.getRowNum() == 0) continue;
                 IncomeRule ir = new IncomeRule();
-                ir.setIncomeBand(row.getCell(0).getStringCellValue());
+                ir.setIncomeBand( IncomeRule.IncomeBand.valueOf( row.getCell(0).getStringCellValue() ) );
                 ir.setTenureDelta((int) row.getCell(1).getNumericCellValue());
-                incomeRules.put(ir.getIncomeBand(), ir);
+                incomeRules.put(ir.getIncomeBand().toString(), ir);
             }
 
             // Sheet 4: Payment History
@@ -63,9 +63,9 @@ public class RulesReaderService
             for (Row row : paymentHistorySheet) {
                 if (row.getRowNum() == 0) continue;
                 PaymentHistoryRule phr = new PaymentHistoryRule();
-                phr.setPaymentHistory(row.getCell(0).getStringCellValue());
-                phr.setTenureRate(row.getCell(1).getNumericCellValue());
-                paymentHistoryRules.put(phr.getPaymentHistory(), phr);
+                phr.setPaymentHistory( PaymentHistoryRule.PaymentHistoryType.valueOf( row.getCell(0).getStringCellValue() ) );
+                phr.setRateDelta(row.getCell(1).getNumericCellValue());
+                paymentHistoryRules.put(phr.getPaymentHistory().toString(), phr);
             }
         }
     }
