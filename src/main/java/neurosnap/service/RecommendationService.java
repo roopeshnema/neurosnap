@@ -334,8 +334,8 @@ public class RecommendationService
                         "  ]\n" +
                         "}";*/
                 String prompt =
-            "You are a financial assistant. Provide exactly 3 refinance options (LOWER_EMI, FASTER_CLOSURE, BALANCED) using strict math and numeric reasoning. Do not guess. Use the exact formulas with numbers. Follow all instructions exactly.\n\n" +
-
+            "You are a financial assistant. Provide exactly 3 refinance options (LOWER_EMI, FASTER_CLOSURE, BALANCED) using strict math and numeric reasoning. " +
+                    "Do not guess. Use the exact formulas with numbers. Follow all instructions exactly.\n\n" +
                     "GOALS:\n" +
                     "1. LOWER_EMI: Use the longest tenure (within allowed limits, e.g. 12 months), even if total interest paid is more.\n" +
                     "2. FASTER_CLOSURE: Use the shortest tenure possible (minimum allowed, e.g. 6 months) to minimize total interest, even if EMI is high.\n" +
@@ -356,15 +356,28 @@ public class RecommendationService
                     "- TotalLoanAmount = EMI × N  (round to 2 decimals)\n" +
                     "- TotalInterest = TotalLoanAmount − Principal  (round to 2 decimals)\n" +
                     "- SavingsPerMonth = ExistingEMI − PlanEMI\n" +
-                    "- TotalSavings = (ExistingEMI × 6) − TotalLoanAmount  (round to 2 decimals)\n" +
-                   "  -Do NOT compute totalSavings as savingsPerMonth × tenure unless savingsPerMonth > 0.\n" +
+                    "  -Do NOT compute totalSavings as savingsPerMonth × tenure unless savingsPerMonth > 0.\n" +
                     "IMPORTANT CONSTRAINTS:\n" +
                     "- Ensure TotalLoanAmount >= Principal or else correct EMI/tenure so that repayment covers principal + interest.\n" +
-                    "- If SavingsPerMonth is negative (because EMI > ExistingEMI), that's okay, but TotalSavings should reflect interest savings or cost correctly. Consider remaining existing tenure as 6\n" +
+                    "- If SavingsPerMonth is negative (because EMI > ExistingEMI), that's okay, but TotalSavings should reflect interest savings or cost correctly. \n" +
                     "- Do NOT use placeholders like \"$$\" or \"Computed\". Use real numbers everywhere.\n" +
                     "- Round all monetary values to 2 decimal places.\n\n" +
                     " Do not estimate or guess EMI. Use the EMI formula explicitly with math. Calculate using actual values.\n" +
                     " \"- DisburseAmount = " + (principal - (persona.getExistingPendingAmount()+110 )) +"\n" +
+                    "- Use LOWER_EMI plan as baseline for savings comparison.\n" +
+                    "- For LOWER_EMI: savingsPerMonth = 0.0, totalSavings = 0.0\n" +
+                    "- For FASTER_CLOSURE and BALANCED: savingsPerMonth = Existing emi - current_plan_emi\n" +
+                    "- totalSavings = LOWER_EMI_totalLoanAmount - current_plan_totalLoanAmount\n" +
+                    "- Don't compute totalSavings as savingsPerMonth × tenure unless it's consistent with interest logic.\n" +
+                    "- Use correct math. Do not guess values.\n" +
+                    "- For PLAN_BALANCED:\n" +
+                    "  - Set tenure to a value between the tenure of PLAN_LOWER_EMI and PLAN_FASTER_CLOSURE (e.g. if LOWER_EMI tenure = 12 months and FASTER_CLOSURE tenure = 6 months, BALANCED tenure = 8 or 9 months).\n" +
+                    "  - Use the same or slightly improved interest rate as LOWER_EMI (do not increase interest rate).\n" +
+                    "  - Calculate EMI accordingly.\n" +
+                    "  - Ensure totalLoanAmount for BALANCED plan is strictly less than the totalLoanAmount of LOWER_EMI plan.\n" +
+                    "  - Calculate savingsPerMonth = LOWER_EMI_EMI - BALANCED_EMI (can be negative if EMI is higher).\n" +
+                    "  - Calculate totalSavings = LOWER_EMI_totalLoanAmount - BALANCED_totalLoanAmount (must be positive).\n" +
+                    "  - If totalLoanAmount for BALANCED plan is greater than LOWER_EMI plan, adjust tenure or EMI to ensure savings.\n" +
                     "OUTPUT FORMAT (JSON only):\n" +
                     "{\n" +
                     "  \"modelVersion\": \"v1.0.0\",\n" +
