@@ -43,7 +43,7 @@ public class ChatGptClient
                         .put("role", "user")
                         .put("content", prompt)
         });
-        json.put("max_tokens",1000); // Adjust as needed
+        json.put("max_tokens",2000); // Adjust as needed
 
 
         // Create request body
