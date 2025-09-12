@@ -43,7 +43,7 @@ public class RecommendOption {
     private GoalType goal;
 
     /** Monthly EMI for this plan (USD). */
-    private int emi;
+    private double emi;
 
     /** Loan tenure (in months). */
     private int tenure;

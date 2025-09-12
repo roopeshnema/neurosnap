@@ -22,9 +22,9 @@ public class ChatGptClient
 
     public String sendPrompt(String prompt) throws IOException {
 
-        client.setReadTimeout( 60, TimeUnit.SECONDS );
-        client.setConnectTimeout( 60, TimeUnit.SECONDS );
-        client.setWriteTimeout( 60, TimeUnit.SECONDS );
+        client.setReadTimeout( 120, TimeUnit.SECONDS );
+        client.setConnectTimeout( 120, TimeUnit.SECONDS );
+        client.setWriteTimeout( 120, TimeUnit.SECONDS );
 
 //        String payload = String.format( "{\"model\":\"%s\",\"messages\":[{\"role\":\"system\",\"content\":\"Rewrite to ≤120 chars, clear, factual, friendly, no new numbers.\"},{\"role\":\"user\",\"content\":%s}],\"max_tokens\":60}",
 //                "gpt-4o", toJson(prompt));
@@ -43,7 +43,7 @@ public class ChatGptClient
                         .put("role", "user")
                         .put("content", prompt)
         });
-        json.put("max_tokens",550); // Adjust as needed
+        json.put("max_tokens",1000); // Adjust as needed
 
 
         // Create request body

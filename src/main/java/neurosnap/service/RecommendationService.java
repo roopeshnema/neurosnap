@@ -234,7 +234,7 @@ public class RecommendationService
         String confidenceRulesJson = mapper.writeValueAsString(confidenceRules);
         String aprScoreRulesJson = mapper.writeValueAsString(aprScoreRules);
 
-        String response  = chatGptClient.sendPrompt( "suggest 3 Refinance options for Lower EMI, Faster Closure, Balanced considering below inputs " +
+       /* String response  = chatGptClient.sendPrompt( "suggest 3 Refinance options for Lower EMI, Faster Closure, Balanced considering below inputs " +
                 "input :" + request +
                 "persona :" + personaJson +
                 "tenure : " + baseTenure +
@@ -264,7 +264,143 @@ public class RecommendationService
                 "      \"reason\": \"$$\"\n" +
                 "    }\n" +
                 "  ]\n" +
-                "}");
+                "}");*/
+
+        //String prompt =
+                /*"You are a financial assistant. Suggest 3 refinance options based on the following goals:\n" +
+                        "1. LOWER_EMI: Lowest possible EMI using maximum allowed tenure (even if total interest is higher).\n" +
+                        "2. FASTER_CLOSURE: Shortest tenure possible to minimize total interest, even with higher EMI.\n" +
+                        "3. BALANCED: Middle-ground between EMI and tenure — reasonable EMI and interest.\n\n" +
+
+                        "INPUT DATA:\n" +
+                        "Principal Amount: " + principal + "\n" +
+                        "Base Tenure: " + baseTenure + " months\n" +
+                        "Persona JSON: " + personaJson + "\n" +
+                        "Rules: " + incomeRulesJson + paymentHistoryRuleJson + confidenceRulesJson + aprScoreRulesJson + "\n\n" +
+                        "calculate interest rate based on aprScoreRulesJson "+
+                        "Use the **standard reducing balance EMI formula** for all calculations:\n" +
+                        "EMI = [P × R × (1 + R)^N] / [(1 + R)^N - 1]\n" +
+                        "Where:\n" +
+                        "- P = Principal\n" +
+                        "- R = Monthly rate = APR / (12 × 100)\n" +
+                        "- N = Tenure in months (ranging from 6 to 12)\n\n" +
+                        "For each plan, compute:\n" +
+                        "- EMI (2 decimal places)\n" +
+                        "- TotalLoanAmount = EMI × Tenure\n" +
+                        "- SavingsPerMonth = Existing EMI from persona - New EMI\n" +
+                        "- TotalSavings = SavingsPerMonth × Tenure\n" +
+                        "- DisburseAmount = " + principal + " - (persona.pendingAmount + 110)\n" +
+                        "- BreakEvenMonths (rounded to nearest month)\n" +
+                        "- Confidence (0–100), based on persona’s repayment behavior\n\n" +
+                        "- Use the actual formula with numbers.\n" +
+                        "- Do not guess or simplify values. Use correct math.\n" +
+                        " - For LOWER_EMI: set savingsPerMonth = 0 \n" +
+                        " - For other plans: \n" +
+                        " - savingsPerMonth = LOWER_EMI_EMI - current_plan_emi \n" +
+                        " - totalSavings = savingsPerMonth × tenure \n" +
+                        " A negative savingsPerMonth is acceptable if the customer pays more EMI to save on interest (e.g., Faster Closure) \n" +
+                        " - If totalLoanAmount < principal, correct EMI accordingly, never below principal \n" +
+                        "- For SavingsPerMonth:\n" +
+                        "   savingsPerMonth = LOWER_EMI_EMI - current_plan_emi\n" +
+                        "- For TotalSavings:\n" +
+                        "   totalSavings = (LOWER_EMI_EMI × LOWER_EMI_Tenure) - (current_plan_emi × current_plan_tenure)\n" +
+                        "- Do NOT compute totalSavings as savingsPerMonth × tenure unless savingsPerMonth > 0.\n" +
+                        "- totalSavings must reflect overall interest saved, even if EMI is higher.\n" +
+                         "Do not use placeholders like \"Computed\". Always return a numeric value\n" +
+                        "Output only valid JSON matching this format:\n" +
+                        "{\n" +
+                        "  \"modelVersion\": \"v1.0.0\",\n" +
+                        "  \"requestId\": \"" + UUID.randomUUID().toString() + "\",\n" +
+                        "  \"personaId\": \"" + persona.getPersonaId() + "\",\n" +
+                        "  \"demoMode\": true,\n" +
+                        "  \"recommendations\": [\n" +
+                        "    {\n" +
+                        "      \"planId\": \"PLAN_LOWER_EMI\",\n" +
+                        "      \"goal\": \"LOWER_EMI\",\n" +
+                        "      \"emi\": <calculated_emi>,\n" +
+                        "      \"principal\": " + principal + ",\n" +
+                        "      \"tenure\": <tenure>,\n" +
+                        "      \"interestRate\": " + apr + ",\n" +
+                        "      \"savingsPerMonth\": <savings_per_month>,\n" +
+                        "      \"totalSavings\": <total_savings>,\n" +
+                        "      \"totalLoanAmount\": <emi_times_tenure>,\n" +
+                        "      \"disburseAmount\": <computed_disburse_amount>,\n" +
+                        "      \"breakEvenMonths\": <months>,\n" +
+                        "      \"confidence\": <confidence>,\n" +
+                        "      \"best\": <true_or_false>,\n" +
+                        "      \"reason\": \"<reasoning>\"\n" +
+                        "    },\n" +
+                        "    ... (repeat for FASTER_CLOSURE and BALANCED)\n" +
+                        "  ]\n" +
+                        "}";*/
+                String prompt =
+            "You are a financial assistant. Provide exactly 3 refinance options (LOWER_EMI, FASTER_CLOSURE, BALANCED) using strict math and numeric reasoning. Do not guess. Use the exact formulas with numbers. Follow all instructions exactly.\n\n" +
+
+                    "GOALS:\n" +
+                    "1. LOWER_EMI: Use the longest tenure (within allowed limits, e.g. 12 months), even if total interest paid is more.\n" +
+                    "2. FASTER_CLOSURE: Use the shortest tenure possible (minimum allowed, e.g. 6 months) to minimize total interest, even if EMI is high.\n" +
+                    "3. BALANCED: Choose a tenure and EMI between LOWER_EMI and FASTER_CLOSURE, balancing monthly payment and interest cost.\n\n" +
+
+                    "INPUT DATA:\n" +
+                    "Principal: " + (principal-110)+ "\n" +
+                    "Allowed tenure range: 6 to 12 months\n\n" +
+                    "input :" + request +
+                    "persona :" + personaJson +
+                    "tenure : " + baseTenure +
+                     "interestRate :" + apr +
+                    "rules :" +  incomeRulesJson + paymentHistoryRuleJson + confidenceRulesJson + aprScoreRulesJson  +
+                    " Existing emi: "+persona.getExistingEmi()+" and remaining tenure as 6 \n" +
+                    "FORMULAS AND CALCULATIONS (must apply with numbers):\n" +
+                    "- Monthly interest rate R = APR / (12 × 100)\n" +
+                    "- EMI = [P × R × (1 + R)^N] / [(1 + R)^N − 1]  (round to 2 decimals)\n" +
+                    "- TotalLoanAmount = EMI × N  (round to 2 decimals)\n" +
+                    "- TotalInterest = TotalLoanAmount − Principal  (round to 2 decimals)\n" +
+                    "- SavingsPerMonth = ExistingEMI − PlanEMI\n" +
+                    "- TotalSavings = (ExistingEMI × 6) − TotalLoanAmount  (round to 2 decimals)\n" +
+                   "  -Do NOT compute totalSavings as savingsPerMonth × tenure unless savingsPerMonth > 0.\n" +
+                    "IMPORTANT CONSTRAINTS:\n" +
+                    "- Ensure TotalLoanAmount >= Principal or else correct EMI/tenure so that repayment covers principal + interest.\n" +
+                    "- If SavingsPerMonth is negative (because EMI > ExistingEMI), that's okay, but TotalSavings should reflect interest savings or cost correctly. Consider remaining existing tenure as 6\n" +
+                    "- Do NOT use placeholders like \"$$\" or \"Computed\". Use real numbers everywhere.\n" +
+                    "- Round all monetary values to 2 decimal places.\n\n" +
+                    " Do not estimate or guess EMI. Use the EMI formula explicitly with math. Calculate using actual values.\n" +
+                    " \"- DisburseAmount = " + (principal - (persona.getExistingPendingAmount()+110 )) +"\n" +
+                    "OUTPUT FORMAT (JSON only):\n" +
+                    "{\n" +
+                    "  \"modelVersion\": \"v1.0.0\",\n" +
+                    "  \"requestId\": \"" + UUID.randomUUID().toString() + "\",\n" +
+                    "  \"personaId\": \"" + persona.getPersonaId() + "\",\n" +
+                    "  \"demoMode\": true,\n" +
+                    "  \"recommendations\": [\n" +
+                    "    {\n" +
+                    "      \"planId\": \"PLAN_LOWER_EMI\",\n" +
+                    "      \"goal\": \"LOWER_EMI\",\n" +
+                    "      \"emi\": <calculated_emi>,\n" +
+                    "      \"principal\": " +( principal-110) + ",\n" +
+                    "      \"tenure\": <tenure_in_months>,\n" +
+                    "      \"interestRate\": " + apr + ",\n" +
+                    "      \"totalLoanAmount\": <emi × tenure>  in double,\n" +
+                    "      \"disburseAmount\": <computed_disburse_amount>,\n" +
+                    "      \"savingsPerMonth\": <existingEMI − emi>,\n" +
+                    "      \"totalSavings\": <(existingEMI × existingTenure) − totalLoanAmount>,\n" +
+                    "      \"breakEvenMonths\": <computed_integer_months>,\n" +
+                    "      \"confidence\": <0–100>,\n" +
+                    "      \"best\": <true_or_false>,\n" +
+                    "      \"reason\": \"<reasoning>\"\n" +
+                    "    },\n" +
+                    "    {\n" +
+                    "      \"planId\": \"PLAN_FASTER_CLOSURE\",\n" +
+                    "      // same fields\n" +
+                    "    },\n" +
+                    "    {\n" +
+                    "      \"planId\": \"PLAN_BALANCED\",\n" +
+                    "      // same fields\n" +
+                    "    }\n" +
+                    "  ]\n" +
+                    "}";
+
+        String response  = chatGptClient.sendPrompt(prompt);
+
 
 
         RecommendOptionsResponse finalResponse = mapper.readValue(response, RecommendOptionsResponse.class);
