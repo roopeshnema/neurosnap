@@ -347,7 +347,7 @@ public class RecommendationService
                     "input :" + request +
                     "persona :" + personaJson +
                     "tenure : " + baseTenure +
-                     "interestRate :" + apr +
+                    // "interestRate :" + apr +
                     "rules :" +  incomeRulesJson + paymentHistoryRuleJson + confidenceRulesJson + aprScoreRulesJson  +
                     " Existing emi: "+persona.getExistingEmi()+" and remaining tenure as 6 \n" +
                     "FORMULAS AND CALCULATIONS (must apply with numbers):\n" +
@@ -363,7 +363,7 @@ public class RecommendationService
                     "- Do NOT use placeholders like \"$$\" or \"Computed\". Use real numbers everywhere.\n" +
                     "- Round all monetary values to 2 decimal places.\n\n" +
                     " Do not estimate or guess EMI. Use the EMI formula explicitly with math. Calculate using actual values.\n" +
-                    " \"- DisburseAmount = " + (principal - (persona.getExistingPendingAmount()+110 )) +"\n" +
+                    " - DisburseAmount = " + (principal - (persona.getExistingPendingAmount()+110 )) +"\n" +
                     "- Use LOWER_EMI plan as baseline for savings comparison.\n" +
                     "- For LOWER_EMI: savingsPerMonth = 0.0, totalSavings = 0.0\n" +
                     "- For FASTER_CLOSURE and BALANCED: savingsPerMonth = Existing emi - current_plan_emi\n" +
@@ -378,6 +378,13 @@ public class RecommendationService
                     "  - Calculate savingsPerMonth = LOWER_EMI_EMI - BALANCED_EMI (can be negative if EMI is higher).\n" +
                     "  - Calculate totalSavings = LOWER_EMI_totalLoanAmount - BALANCED_totalLoanAmount (must be positive).\n" +
                     "  - If totalLoanAmount for BALANCED plan is greater than LOWER_EMI plan, adjust tenure or EMI to ensure savings.\n" +
+                    "    Determine best plan based on persona characteristics:\n" +
+                    "  - If persona income is high and payment history is DISCIPLINED, recommend PLAN_FASTER_CLOSURE as best for interest savings.\n" +
+                    "  - If persona income is MEDIUM and payment history is MOSTLY_DISCIPLINED, recommend PLAN_BALANCED as best for a balance between affordability and interest savings.\n" +
+                    "  - If persona income is low or payment history is IRREGULAR, recommend PLAN_LOWER_EMI as best to minimize monthly payment stress.\n" +
+                    "  - Also consider aprScore: higher aprScore supports recommending faster closure or balanced plans; lower aprScore favors conservative lower EMI plan.\n" +
+                    "  - Set the best field (true/false) accordingly in each plan's output, only one option can be true.\n" +
+                    "  - Adjust confidence score based on how well the persona fits each plan.\n" +
                     "OUTPUT FORMAT (JSON only):\n" +
                     "{\n" +
                     "  \"modelVersion\": \"v1.0.0\",\n" +
@@ -398,7 +405,7 @@ public class RecommendationService
                     "      \"totalSavings\": <(existingEMI × existingTenure) − totalLoanAmount>,\n" +
                     "      \"breakEvenMonths\": <computed_integer_months>,\n" +
                     "      \"confidence\": <0–100>,\n" +
-                    "      \"best\": <true_or_false>,\n" +
+                    "      \"best\": <true_or_false based on persona income band, payment behaviour and apr rules provided>,\n" +
                     "      \"reason\": \"<reasoning>\"\n" +
                     "    },\n" +
                     "    {\n" +
