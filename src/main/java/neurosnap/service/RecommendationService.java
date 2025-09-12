@@ -530,7 +530,7 @@ public class RecommendationService
 
     public List<Persona> getPersonas()
     {
-        return personaReaderService.readPersonasFromExcel( "persona_v1.xlsx" );
+        return personaReaderService.readPersonasFromExcel( "persona.xlsx" );
     }
 
     private int getTotalSavings () {
