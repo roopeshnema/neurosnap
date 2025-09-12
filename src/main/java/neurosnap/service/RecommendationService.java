@@ -46,7 +46,7 @@ public class RecommendationService
     public RecommendOptionsResponse getRecommendations(RecommendRequest request, String personaId ) throws Exception
     {
 
-        List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona_v1.xlsx" );
+        List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona.xlsx" );
         Optional<Persona> personaResult = Optional.ofNullable( personaList.stream()
                 .filter( p -> p.getPersonaId().equals( personaId ) )
                 .findFirst()
