@@ -5,11 +5,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import neurosnap.client.ChatGptClient;
 import neurosnap.dto.Persona;
 import neurosnap.dto.RecommendOption;
 import neurosnap.dto.RecommendOptionsResponse;
 import neurosnap.dto.RecommendRequest;
+import neurosnap.dto.rules.AprScoreRule;
 import neurosnap.dto.rules.ConfidenceRule;
 import neurosnap.dto.rules.GoalRule;
 import neurosnap.dto.rules.IncomeRule;
@@ -44,7 +46,7 @@ public class RecommendationService
     public RecommendOptionsResponse getRecommendations(RecommendRequest request, String personaId ) throws Exception
     {
 
-        List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona.xlsx" );
+        List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona_v1.xlsx" );
         Optional<Persona> personaResult = Optional.ofNullable( personaList.stream()
                 .filter( p -> p.getPersonaId().equals( personaId ) )
                 .findFirst()
@@ -72,18 +74,18 @@ public class RecommendationService
                 "REFI1", RecommendOption.GoalType.LOWER_EMI, 18000, 72, 5.9, 1200, 14400,
                   82,6,true,
                  "Because you always pay early and have strong credit, you qualify for a lower EMI with minimal risk.",
-                1000,1500
+                1000,1500,4000
         );
         RecommendOption option2 = new RecommendOption(
                 "REFI2", RecommendOption.GoalType.BALANCED,  20000,  60,  6.5,  0,  0,
                  74,6,  false,
                 "Balanced plan keeps your payments stable while slightly reducing total interest.",
-                2000,1000
+                2000,1000,3000
         );
         RecommendOption option3 = new RecommendOption(
                "REFI3", RecommendOption.GoalType.FASTER_CLOSURE, 22000,  48,  5.5,  1000,  12000,  68,6, false,
                 "Higher EMI but lets you close the loan faster and save $50,000 in interest.",
-                3000, 1500
+                3000, 1500,2500
         );
         RecommendOption[] optionArray =  new RecommendOption[] { option1, option2, option3 };
         response.setRecommendations(optionArray);
@@ -210,7 +212,7 @@ public class RecommendationService
         //double principal = Math.max(minRequired, Math.min(request.getLoanAmount(), maxLoanAmountLimit));
         //principal = Math.max(principal, minLoanAmountLimit);
 
-        double principal = request.getLoanAmount() - fees;
+        double principal = request.getLoanAmount();
 
         // normalizeTenure
         int baseTenure = normalizeTenure(request.getTenure());
@@ -225,36 +227,40 @@ public class RecommendationService
         Map<String, IncomeRule> incomerules = rulesReaderService.getIncomeRules();
         Map<String, ConfidenceRule> confidenceRules = rulesReaderService.getConfidenceRules();
         Map<String, PaymentHistoryRule> paymentHistoryRules = rulesReaderService.getPaymentHistoryRules();
+        Map<String, AprScoreRule> aprScoreRules = rulesReaderService.getAprScoreRules();
 
         String incomeRulesJson = mapper.writeValueAsString(incomerules);
         String paymentHistoryRuleJson = mapper.writeValueAsString(paymentHistoryRules);
         String confidenceRulesJson = mapper.writeValueAsString(confidenceRules);
+        String aprScoreRulesJson = mapper.writeValueAsString(aprScoreRules);
 
         String response  = chatGptClient.sendPrompt( "suggest 3 Refinance options for Lower EMI, Faster Closure, Balanced considering below inputs " +
                 "input :" + request +
                 "persona :" + personaJson +
-                "rules : " + incomeRulesJson + paymentHistoryRuleJson + confidenceRulesJson +
-                "rates : " + apr +
                 "tenure : " + baseTenure +
                 "principal : " + principal  +
+                "interestRate :" + apr +
+                "rules :" +  incomeRulesJson + paymentHistoryRuleJson + confidenceRulesJson + aprScoreRulesJson  +
                 "output format JSON only:" + "{\n" +
                 "  \"modelVersion\": \"v1.0.0\",\n" +
-                "  \"personaId\":" + persona.getPersonaId() +"\n" +
+                "  \"requestId\":" +  UUID.randomUUID().toString() + ",\n" +
+                "  \"personaId\":" + persona.getPersonaId() +",\n" +
                 "  \"demoMode\": true,\n" +
                 "  \"recommendations\": [\n" +
                 "    {\n" +
                 "      \"planId\": \"$$\",\n" +
-                "      \"goal\": \"$$\",\n" +
-                "      \"emi\": $$$,\n" +
-                "      \"tenure\": $$,\n" +
+                "      \"goal\": \"$Possible values LOWER_EMI or BALANCED or FASTER_CLOSURE$\",\n" +
+                "      \"emi\":   (principal * (interestRate / 12.0 / 100.0) * (Math.pow(1 + (interestRate / 12.0 / 100.0), tenure))) / ((Math.pow(1 + (interestRate / 12.0 / 100.0), tenure)) - 1),\n" +
+                "      \"principal\":" +  principal + ",\n" +
+                "      \"tenure\": $tenure will be 1 to 12 in int$,\n" +
                 "      \"interestRate\": $$,\n" +
                 "      \"savingsPerMonth\": $$,\n" +
                 "      \"totalSavings\": $$,\n" +
-                "      \"totalLoanAmount\": $emi * tenure$,\n" +
+                "      \"totalLoanAmount\": $$,\n" +
                 "      \"disburseAmount\": $principal - existing pending amount from persona$,\n" +
                 "      \"breakEvenMonths\": $,\n" +
                 "      \"confidence\": $confidence % (0–100), based on persona + repayment behavior$,\n" +
-                "      \"best\": $$,\n" +
+                "      \"best\": $boolean true or false$,\n" +
                 "      \"reason\": \"$$\"\n" +
                 "    }\n" +
                 "  ]\n" +
@@ -368,7 +374,7 @@ public class RecommendationService
 
     public List<Persona> getPersonas()
     {
-        return personaReaderService.readPersonasFromExcel( "persona.xlsx" );
+        return personaReaderService.readPersonasFromExcel( "persona_v1.xlsx" );
     }
 
     private int getTotalSavings () {

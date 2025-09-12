@@ -6,6 +6,7 @@ import com.squareup.okhttp.Request;
 import com.squareup.okhttp.RequestBody;
 import com.squareup.okhttp.Response;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,16 +22,19 @@ public class ChatGptClient
 
     public String sendPrompt(String prompt) throws IOException {
 
+        client.setReadTimeout( 60, TimeUnit.SECONDS );
+        client.setConnectTimeout( 60, TimeUnit.SECONDS );
+        client.setWriteTimeout( 60, TimeUnit.SECONDS );
 
-        String payload = String.format( "{\"model\":\"%s\",\"messages\":[{\"role\":\"system\",\"content\":\"Rewrite to ≤120 chars, clear, factual, friendly, no new numbers.\"},{\"role\":\"user\",\"content\":%s}],\"max_tokens\":60}",
-                "gpt-4o", toJson(prompt));
+//        String payload = String.format( "{\"model\":\"%s\",\"messages\":[{\"role\":\"system\",\"content\":\"Rewrite to ≤120 chars, clear, factual, friendly, no new numbers.\"},{\"role\":\"user\",\"content\":%s}],\"max_tokens\":60}",
+//                "gpt-4o", toJson(prompt));
 
-        Request req = new Request.Builder()
-                .url(API_URL)
-                .addHeader("Authorization", "Bearer " + API_KEY)
-                .addHeader("Content-Type", "application/json")
-                .post(RequestBody.create( MediaType.parse("application/json"), payload ) )
-                .build();
+//        Request req = new Request.Builder()
+//                .url(API_URL)
+//                .addHeader("Authorization", "Bearer " + API_KEY)
+//                .addHeader("Content-Type", "application/json")
+//                .post(RequestBody.create( MediaType.parse("application/json"), payload ) )
+//                .build();
 
         JSONObject json = new JSONObject();
         json.put("model", "gpt-4o"); // Use the appropriate model
@@ -79,7 +83,7 @@ public class ChatGptClient
 
             return responseContent;
         } catch ( Exception e ) {
-            System.out.println("Something went wrong");
+            System.out.println("Something went wrong " + e.getMessage());
         }
 
         return responseContent;

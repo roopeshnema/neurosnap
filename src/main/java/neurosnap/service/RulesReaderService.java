@@ -4,6 +4,7 @@ package neurosnap.service;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import neurosnap.dto.rules.AprScoreRule;
 import neurosnap.dto.rules.ConfidenceRule;
 import neurosnap.dto.rules.GoalRule;
 import neurosnap.dto.rules.IncomeRule;
@@ -22,6 +23,8 @@ public class RulesReaderService
     private Map<String, IncomeRule> incomeRules = new HashMap<>();
 
     private Map<String, PaymentHistoryRule> paymentHistoryRules = new HashMap<>();
+
+    private Map<String, AprScoreRule> aprScoreRules = new HashMap<>();
 
     public void loadRules(String rulesFile) throws Exception {
         try (InputStream is = PersonaReaderService.class.getClassLoader().getResourceAsStream(rulesFile);
@@ -67,6 +70,18 @@ public class RulesReaderService
                 phr.setRateDelta(row.getCell(1).getNumericCellValue());
                 paymentHistoryRules.put(phr.getPaymentHistory().toString(), phr);
             }
+
+            Sheet aprScoreSheet = workbook.getSheet("APR");
+            for (Row row : aprScoreSheet) {
+                if (row.getRowNum() == 0) continue;
+                AprScoreRule rule = new AprScoreRule();
+                rule.setTier(row.getCell(0).getStringCellValue().trim().toUpperCase());
+                rule.setMinScore((int) row.getCell(1).getNumericCellValue());
+                rule.setMaxScore((int) row.getCell(2).getNumericCellValue());
+                rule.setMinApr(row.getCell(3).getNumericCellValue());
+                rule.setMaxApr(row.getCell(4).getNumericCellValue());
+                aprScoreRules.put( rule.getTier().toString(), rule );
+            }
         }
     }
 
@@ -96,6 +111,10 @@ public class RulesReaderService
 
     public Map<String, PaymentHistoryRule> getPaymentHistoryRules(){
         return this.paymentHistoryRules;
+    }
+
+    public Map<String, AprScoreRule> getAprScoreRules(){
+        return this.aprScoreRules;
     }
 
 }

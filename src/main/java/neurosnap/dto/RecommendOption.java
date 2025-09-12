@@ -30,8 +30,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 @Getter
 @Setter
 @JsonPropertyOrder({
-        "planId", "goal", "emi", "tenure", "interestRate",
-        "savingsPerMonth", "totalSavings", "fees",
+        "planId", "goal", "principal","interestRate","tenure","emi",
+        "savingsPerMonth", "totalSavings",
         "breakEvenMonths", "confidence", "best", "reason"
 })
 public class RecommendOption {
@@ -75,6 +75,8 @@ public class RecommendOption {
     private double totalLoanAmount;
 
     private double disburseAmount;
+
+    private double principal;
 
     /**
      * Enum for refinance goals (ensures only valid values are used).
