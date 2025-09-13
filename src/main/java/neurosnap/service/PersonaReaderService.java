@@ -60,6 +60,7 @@ public class PersonaReaderService
                 persona.setBankName(row.getCell( 16 ).getStringCellValue());
                 persona.setCardNumber((long) row.getCell( 17 ).getNumericCellValue());
                 persona.setMinimumRefinanceAmt( row.getCell( 18 ).getNumericCellValue());
+                persona.setIncomeAmt( row.getCell( 19 ).getNumericCellValue());
 
                 personas.add( persona );
             }

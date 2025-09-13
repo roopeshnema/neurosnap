@@ -73,4 +73,8 @@ public class Persona {
 
     /** Minimum refinance amount required (covers pending + fees). */
     private double minimumRefinanceAmt;
+
+    /** Income */
+    private double incomeAmt;
+
 }

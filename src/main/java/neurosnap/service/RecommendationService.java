@@ -54,6 +54,10 @@ public class RecommendationService
         Persona persona = personaResult.get();
 
 
+        if(persona.getExistingPendingAmount() > (persona.getExistingLoanAmount() / 2)) {
+            throw new BadRequestException( "You need to serve the minimum tenure on your existing loan before you can apply for refinancing." ) ;
+        }
+
         //rulesReaderService.loadRules( "rules.xlsx" );
         //return generatePlans(persona, request);
         return generatePlansUsingAI( persona, request);

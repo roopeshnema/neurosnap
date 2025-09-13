@@ -81,6 +81,7 @@ public class ChatGptClient
             System.out.println( "Response: " + responseContent );
             responseContent = responseContent.replace( "```json", "" ).replace( "```", "" );
 
+
             return responseContent;
         } catch ( Exception e ) {
             System.out.println("Something went wrong " + e.getMessage());
