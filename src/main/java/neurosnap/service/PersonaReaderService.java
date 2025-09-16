@@ -1,6 +1,9 @@
 package neurosnap.service;
 
+import jakarta.annotation.PostConstruct;
+import java.util.Optional;
 import neurosnap.dto.Persona;
+import org.apache.coyote.BadRequestException;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 
@@ -15,10 +18,12 @@ import java.util.List;
 public class PersonaReaderService
 {
 
-    public List<Persona> readPersonasFromExcel( String filePath )
+    private List<Persona> personas = new ArrayList<>();
+    @PostConstruct
+    public void readPersonasFromExcel( )
     {
-        List<Persona> personas = new ArrayList<>();
 
+        String filePath = "persona.xlsx";
         try (InputStream is = PersonaReaderService.class.getClassLoader().getResourceAsStream(filePath);
              Workbook workbook = WorkbookFactory.create(is))
         {
@@ -70,12 +75,23 @@ public class PersonaReaderService
             e.printStackTrace();
         }
 
-        return personas;
     }
 
     private String setDateOfBirth(Cell cell) {
         Date dob = cell.getDateCellValue();
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
         return sdf.format(dob);
+    }
+
+    public List<Persona> getAllPersona() {
+        return personas;
+    }
+
+    public Optional<Persona> getPersona (String personaId) throws BadRequestException
+    {
+        return  Optional.ofNullable( personas.stream()
+                .filter( p -> p.getPersonaId().equals( personaId ) )
+                .findFirst()
+                .orElseThrow( () -> new BadRequestException( "Unknown persona-id: " + personaId ) ) );
     }
 }

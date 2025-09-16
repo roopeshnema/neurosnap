@@ -13,10 +13,8 @@ import neurosnap.dto.RecommendOptionsResponse;
 import neurosnap.dto.RecommendRequest;
 import neurosnap.dto.rules.AprScoreRule;
 import neurosnap.dto.rules.ConfidenceRule;
-import neurosnap.dto.rules.GoalRule;
 import neurosnap.dto.rules.IncomeRule;
 import neurosnap.dto.rules.PaymentHistoryRule;
-import neurosnap.util.RefiCalculator;
 import org.apache.coyote.BadRequestException;
 import org.springframework.stereotype.Service;
 
@@ -32,10 +30,6 @@ public class RecommendationService
     private final double processingFee = 100;
     private final double taxFee = processingFee / 10;
 
-    private final double maxLoanAmountLimit = 5000;
-
-    private final double minLoanAmountLimit = 300;
-
     public RecommendationService( PersonaReaderService personaReaderService, RulesReaderService rulesReaderService, ChatGptClient chatGptClient )
     {
         this.personaReaderService = personaReaderService;
@@ -46,27 +40,18 @@ public class RecommendationService
     public RecommendOptionsResponse getRecommendations(RecommendRequest request, String personaId ) throws Exception
     {
 
-        List<Persona> personaList = personaReaderService.readPersonasFromExcel( "persona.xlsx" );
-        Optional<Persona> personaResult = Optional.ofNullable( personaList.stream()
-                .filter( p -> p.getPersonaId().equals( personaId ) )
-                .findFirst()
-                .orElseThrow( () -> new BadRequestException( "Unknown persona-id: " + personaId ) ) );
+        Optional<Persona> personaResult = personaReaderService.getPersona( personaId );
         Persona persona = personaResult.get();
-
 
         if(persona.getExistingPendingAmount() > (persona.getExistingLoanAmount() / 2)) {
             throw new BadRequestException( "You need to serve the minimum tenure on your existing loan before you can apply for refinancing." ) ;
         }
 
-        //rulesReaderService.loadRules( "rules.xlsx" );
-        //return generatePlans(persona, request);
         return generatePlansUsingAI( persona, request);
-
     }
 
     public RecommendOptionsResponse getExamples(RecommendRequest request, String personaId ) throws Exception
     {
-        //  return Arrays.asList(option1, option2, option3);
         return populateRecommendOptionsResponse();
     }
 
@@ -96,107 +81,6 @@ public class RecommendationService
        return response;
     }
 
-
-    public RecommendOptionsResponse generatePlans(Persona persona, RecommendRequest request) throws Exception
-    {
-        List<RecommendOption> plans = new ArrayList<>();
-
-        // Calculating Fee
-        double fees = processingFee + taxFee;
-
-        // Validating user input amount with minRequired amount.
-        double minRequired = persona.getExistingPendingAmount() + fees;
-        if (request.getLoanAmount() < minRequired) {
-            throw new BadRequestException("Requested amount must cover pending balance + fees (min $" + Math.round(minRequired) + ")");
-        }
-
-
-        // Calculating Principal
-        double principal = Math.max(minRequired, Math.min(request.getLoanAmount(), maxLoanAmountLimit));
-        principal = Math.max(principal, minLoanAmountLimit);
-
-        // normalizeTenure
-        int baseTenure = normalizeTenure(request.getTenure());
-
-        // Calculate APR
-        double apr = baseApr(persona) + adjustAprByPaymentHistory(persona.getPaymentHistory())
-                + adjustAprByIncomeBand(persona.getIncome());
-
-        double aprFaster = Math.max(0, apr - 0.5); // incentive
-
-        // Baseline (balanced)
-        int tBalanced = Math.max( 6,baseTenure - 3);
-        double emiBalanced = RefiCalculator.calculateEMI(principal, apr, tBalanced);
-
-        // LOWER_EMI
-        int tLower = 12;
-        double emiLower = RefiCalculator.calculateEMI(principal, apr, tLower);
-        double savLower = Math.max(0, emiBalanced - emiLower);
-        plans.add(RecommendOption.builder()
-                .planId("REFI1")
-                .goal( RecommendOption.GoalType.LOWER_EMI).tenure(tLower)
-                .interestRate(round2(apr)).emi((int)Math.round(emiLower))
-                .savingsPerMonth(round2(savLower))
-                .totalSavings(round2(savLower * tLower))
-                //.fees(round2(fees))
-                //.breakEvenMonths((int)Math.ceil(fees / Math.max(1.0, savLower)))
-                .confidence(calcConfidence(persona, "LOWER_EMI"))
-                .best(false)
-                //.reason(chatGptClient.sendPrompt(reasonTemplate("LOWER_EMI", persona.getPaymentHistory(), savLower, tLower)))
-                .reason(reasonTemplate("LOWER_EMI", persona.getPaymentHistory(), savLower, tLower))
-                .build());
-
-        // BALANCED
-        plans.add(RecommendOption.builder()
-                .planId("REFI2")
-                .goal( RecommendOption.GoalType.BALANCED)
-                .tenure(tBalanced)
-                .interestRate(round2(apr))
-                .emi((int)Math.round(emiBalanced))
-                .savingsPerMonth(0)
-                .totalSavings(0)
-                //.fees(round2(fees))
-                //.breakEvenMonths(0)
-                .confidence(calcConfidence(persona, "BALANCED"))
-                .best(false)
-                //.reason(chatGptClient.sendPrompt(reasonTemplate("BALANCED", persona.getPaymentHistory(), 0, tBalanced)))
-                .reason( reasonTemplate("BALANCED", persona.getPaymentHistory(), 0, tBalanced))
-                .build());
-
-        // FASTER_CLOSURE
-        int tFaster = Math.max(6, baseTenure - 12);
-        double emiFaster = RefiCalculator.calculateEMI(principal, aprFaster, tFaster);
-        double savFaster = Math.max(0, emiBalanced - emiFaster); // usually 0 because EMI is higher
-        plans.add(RecommendOption.builder()
-                .planId("REFI3")
-                .goal( RecommendOption.GoalType.FASTER_CLOSURE)
-                .tenure(tFaster)
-                .interestRate(round2(aprFaster))
-                .emi((int)Math.round(emiFaster))
-                .savingsPerMonth(round2(savFaster))
-                .totalSavings(round2(savFaster * tFaster))
-                //.fees(round2(fees))
-                //.breakEvenMonths((int)Math.ceil(fees / Math.max(1.0, savFaster)))
-                .confidence(calcConfidence(persona, "FASTER_CLOSURE"))
-                .best(false)
-                //.reason(chatGptClient.sendPrompt(reasonTemplate("FASTER_CLOSURE", persona.getPaymentHistory(), savFaster, tFaster)))
-                        .reason( reasonTemplate("FASTER_CLOSURE", persona.getPaymentHistory(), savFaster, tFaster))
-                .build());
-
-
-        // best-fit
-        RecommendOption best = plans.get(1); // default BALANCED
-        if ("LOW".equals( persona.getIncome() ) || "IRREGULAR".equals(persona.getPaymentHistory())) best = plans.get(0);
-        else if ("HIGH".equals( persona.getIncome() ) && "DISCIPLINED".equals(persona.getPaymentHistory())) best = plans.get(2);
-        best.setBest( true );
-
-        return RecommendOptionsResponse.builder()
-                .personaId(persona.getPersonaId())
-                .modelVersion("v1.0.0")
-                .recommendations(plans.toArray(new RecommendOption[0]))
-                .build();
-    }
-
     public RecommendOptionsResponse generatePlansUsingAI(Persona persona, RecommendRequest request) throws Exception
     {
 
@@ -211,11 +95,6 @@ public class RecommendationService
             throw new BadRequestException("Requested amount must cover pending balance + fees (min $" + Math.round(minRequired) + ")");
         }
 
-
-        // Calculating Principal
-        //double principal = Math.max(minRequired, Math.min(request.getLoanAmount(), maxLoanAmountLimit));
-        //principal = Math.max(principal, minLoanAmountLimit);
-
         double principal = request.getLoanAmount();
 
         // normalizeTenure
@@ -227,7 +106,6 @@ public class RecommendationService
         ObjectMapper mapper = new ObjectMapper();
         String personaJson = mapper.writeValueAsString(persona);
 
-        rulesReaderService.loadRules( "rules.xlsx" );
         Map<String, IncomeRule> incomerules = rulesReaderService.getIncomeRules();
         Map<String, ConfidenceRule> confidenceRules = rulesReaderService.getConfidenceRules();
         Map<String, PaymentHistoryRule> paymentHistoryRules = rulesReaderService.getPaymentHistoryRules();
@@ -238,106 +116,7 @@ public class RecommendationService
         String confidenceRulesJson = mapper.writeValueAsString(confidenceRules);
         String aprScoreRulesJson = mapper.writeValueAsString(aprScoreRules);
 
-       /* String response  = chatGptClient.sendPrompt( "suggest 3 Refinance options for Lower EMI, Faster Closure, Balanced considering below inputs " +
-                "input :" + request +
-                "persona :" + personaJson +
-                "tenure : " + baseTenure +
-                "principal : " + principal  +
-                "interestRate :" + apr +
-                "rules :" +  incomeRulesJson + paymentHistoryRuleJson + confidenceRulesJson + aprScoreRulesJson  +
-                "output format JSON only:" + "{\n" +
-                "  \"modelVersion\": \"v1.0.0\",\n" +
-                "  \"requestId\":" +  UUID.randomUUID().toString() + ",\n" +
-                "  \"personaId\":" + persona.getPersonaId() +",\n" +
-                "  \"demoMode\": true,\n" +
-                "  \"recommendations\": [\n" +
-                "    {\n" +
-                "      \"planId\": \"$$\",\n" +
-                "      \"goal\": \"$Possible values LOWER_EMI or BALANCED or FASTER_CLOSURE$\",\n" +
-                "      \"emi\":   (principal * (interestRate / 12.0 / 100.0) * (Math.pow(1 + (interestRate / 12.0 / 100.0), tenure))) / ((Math.pow(1 + (interestRate / 12.0 / 100.0), tenure)) - 1),\n" +
-                "      \"principal\":" +  principal + ",\n" +
-                "      \"tenure\": $tenure will be 1 to 12 in int$,\n" +
-                "      \"interestRate\": $$,\n" +
-                "      \"savingsPerMonth\": $$,\n" +
-                "      \"totalSavings\": $$,\n" +
-                "      \"totalLoanAmount\": $$,\n" +
-                "      \"disburseAmount\": $principal - existing pending amount from persona$,\n" +
-                "      \"breakEvenMonths\": $,\n" +
-                "      \"confidence\": $confidence % (0–100), based on persona + repayment behavior$,\n" +
-                "      \"best\": $boolean true or false$,\n" +
-                "      \"reason\": \"$$\"\n" +
-                "    }\n" +
-                "  ]\n" +
-                "}");*/
-
-        //String prompt =
-                /*"You are a financial assistant. Suggest 3 refinance options based on the following goals:\n" +
-                        "1. LOWER_EMI: Lowest possible EMI using maximum allowed tenure (even if total interest is higher).\n" +
-                        "2. FASTER_CLOSURE: Shortest tenure possible to minimize total interest, even with higher EMI.\n" +
-                        "3. BALANCED: Middle-ground between EMI and tenure — reasonable EMI and interest.\n\n" +
-
-                        "INPUT DATA:\n" +
-                        "Principal Amount: " + principal + "\n" +
-                        "Base Tenure: " + baseTenure + " months\n" +
-                        "Persona JSON: " + personaJson + "\n" +
-                        "Rules: " + incomeRulesJson + paymentHistoryRuleJson + confidenceRulesJson + aprScoreRulesJson + "\n\n" +
-                        "calculate interest rate based on aprScoreRulesJson "+
-                        "Use the **standard reducing balance EMI formula** for all calculations:\n" +
-                        "EMI = [P × R × (1 + R)^N] / [(1 + R)^N - 1]\n" +
-                        "Where:\n" +
-                        "- P = Principal\n" +
-                        "- R = Monthly rate = APR / (12 × 100)\n" +
-                        "- N = Tenure in months (ranging from 6 to 12)\n\n" +
-                        "For each plan, compute:\n" +
-                        "- EMI (2 decimal places)\n" +
-                        "- TotalLoanAmount = EMI × Tenure\n" +
-                        "- SavingsPerMonth = Existing EMI from persona - New EMI\n" +
-                        "- TotalSavings = SavingsPerMonth × Tenure\n" +
-                        "- DisburseAmount = " + principal + " - (persona.pendingAmount + 110)\n" +
-                        "- BreakEvenMonths (rounded to nearest month)\n" +
-                        "- Confidence (0–100), based on persona’s repayment behavior\n\n" +
-                        "- Use the actual formula with numbers.\n" +
-                        "- Do not guess or simplify values. Use correct math.\n" +
-                        " - For LOWER_EMI: set savingsPerMonth = 0 \n" +
-                        " - For other plans: \n" +
-                        " - savingsPerMonth = LOWER_EMI_EMI - current_plan_emi \n" +
-                        " - totalSavings = savingsPerMonth × tenure \n" +
-                        " A negative savingsPerMonth is acceptable if the customer pays more EMI to save on interest (e.g., Faster Closure) \n" +
-                        " - If totalLoanAmount < principal, correct EMI accordingly, never below principal \n" +
-                        "- For SavingsPerMonth:\n" +
-                        "   savingsPerMonth = LOWER_EMI_EMI - current_plan_emi\n" +
-                        "- For TotalSavings:\n" +
-                        "   totalSavings = (LOWER_EMI_EMI × LOWER_EMI_Tenure) - (current_plan_emi × current_plan_tenure)\n" +
-                        "- Do NOT compute totalSavings as savingsPerMonth × tenure unless savingsPerMonth > 0.\n" +
-                        "- totalSavings must reflect overall interest saved, even if EMI is higher.\n" +
-                         "Do not use placeholders like \"Computed\". Always return a numeric value\n" +
-                        "Output only valid JSON matching this format:\n" +
-                        "{\n" +
-                        "  \"modelVersion\": \"v1.0.0\",\n" +
-                        "  \"requestId\": \"" + UUID.randomUUID().toString() + "\",\n" +
-                        "  \"personaId\": \"" + persona.getPersonaId() + "\",\n" +
-                        "  \"demoMode\": true,\n" +
-                        "  \"recommendations\": [\n" +
-                        "    {\n" +
-                        "      \"planId\": \"PLAN_LOWER_EMI\",\n" +
-                        "      \"goal\": \"LOWER_EMI\",\n" +
-                        "      \"emi\": <calculated_emi>,\n" +
-                        "      \"principal\": " + principal + ",\n" +
-                        "      \"tenure\": <tenure>,\n" +
-                        "      \"interestRate\": " + apr + ",\n" +
-                        "      \"savingsPerMonth\": <savings_per_month>,\n" +
-                        "      \"totalSavings\": <total_savings>,\n" +
-                        "      \"totalLoanAmount\": <emi_times_tenure>,\n" +
-                        "      \"disburseAmount\": <computed_disburse_amount>,\n" +
-                        "      \"breakEvenMonths\": <months>,\n" +
-                        "      \"confidence\": <confidence>,\n" +
-                        "      \"best\": <true_or_false>,\n" +
-                        "      \"reason\": \"<reasoning>\"\n" +
-                        "    },\n" +
-                        "    ... (repeat for FASTER_CLOSURE and BALANCED)\n" +
-                        "  ]\n" +
-                        "}";*/
-                String prompt =
+        String prompt =
             "You are a financial assistant. Provide exactly 3 refinance options (LOWER_EMI, FASTER_CLOSURE, BALANCED) using strict math and numeric reasoning. " +
                     "Do not guess. Use the exact formulas with numbers. Follow all instructions exactly.\n\n" +
                     "GOALS:\n" +
@@ -425,8 +204,6 @@ public class RecommendationService
 
         String response  = chatGptClient.sendPrompt(prompt);
 
-
-
         RecommendOptionsResponse finalResponse = mapper.readValue(response, RecommendOptionsResponse.class);
 
         return finalResponse;
@@ -481,85 +258,8 @@ public class RecommendationService
         return (tenure==6||tenure==12) ? tenure : 12;
     }
 
-    private String getConfidence( int creditScore )
-    {
-        if(creditScore >= 80) {
-            return "HIGH";
-        }
-        else if ( creditScore < 80 && creditScore > 50 )
-        {
-            return "MEDIUM";
-        } else {
-            return "LOW";
-        }
-    }
-
-    private double getAdjustedRate( double rate, String paymentHistory, String confidence )
-    {
-        ConfidenceRule confidenceRule = rulesReaderService.getConfidenceRules(confidence);
-        PaymentHistoryRule paymentHistoryRule = rulesReaderService.getPaymentHistoryRule( paymentHistory );
-
-        rate = rate + ( confidenceRule != null ? confidenceRule.getRateDelta() : 0);
-        rate = rate + ( paymentHistoryRule != null ? paymentHistoryRule.getRateDelta() : 0);
-
-        return rate;
-    }
-
-    private int getAdjustedTenure( int tenure, String goal, String incomeBand )
-    {
-
-        GoalRule goalRule = rulesReaderService.getGoalRule( goal );
-
-        tenure = tenure + (goalRule != null ? goalRule.getTenureDelta() : 0);
-
-        IncomeRule incomeRule = rulesReaderService.getIncomeRule( incomeBand );
-
-        tenure = tenure + (incomeRule != null ? incomeRule.getTenureDelta() : 0);
-
-        return tenure;
-    }
-
-
-    private int calculateConfidence(Persona persona, String goal) {
-        // Simple logic: higher credit score + disciplined behavior => higher %
-        int base = persona.getCreditScore() / 10; // scale 0–100
-        if (persona.getPaymentHistory().equals( "DISCIPLINED" )) base += 10;
-        if (persona.getIncome().equals( "HIGH" )) base += 5;
-        return Math.min(100, base);
-    }
-
-    private double round(double v) {
-        return Math.round(v * 100.0) / 100.0;
-    }
-
     public List<Persona> getPersonas()
     {
-        return personaReaderService.readPersonasFromExcel( "persona.xlsx" );
+        return personaReaderService.getAllPersona();
     }
-
-    private int getTotalSavings () {
-       // Current loan monthly payment: $2,000
-      //  Remaining term: 20 years (240 months)
-      //  Refinanced monthly payment: $1,700
-      //  New loan term: 30 years (360 months)
-     //   savingsPerMonth = 2000 - 1700 = $300
-    //return( (2000 * 240) - (1700 * 360));
-    //         = 480,000 - 612,000
-   //             = -$132,000 (Loss)
-   //even though you save $300/month, you're paying for 10 extra years, resulting in no total savings, but actually a loss. This is why total savings must consider full loan lifetime.
-   //else  totalSavings = savingsPerMonth × refinancedLoanTermInMonths
-     return 300*60;
-    }
-
-    private double getSavingsPerMonth () {
-        // Current loan monthly payment: $2,000
-        //  Refinanced monthly payment: $1,700
-        return 2000 - 1700;
-
-    }
-    private int getBreakEvenMonths(){
-        //  breakEvenMonths = fees -totalRefinanceCosts / savingsPerMonth
-        return  500 / 300;
-    }
-
 }

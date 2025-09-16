@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor(onConstructor_ = {@Autowired })
 public class ChatGptClient
 {
     private static final String API_KEY = "";
@@ -79,6 +78,7 @@ public class ChatGptClient
 
 
             System.out.println( "Response: " + responseContent );
+            responseContent = responseContent.substring( responseContent.indexOf( "```json" ), responseContent.lastIndexOf( "```" ) );
             responseContent = responseContent.replace( "```json", "" ).replace( "```", "" );
 
 

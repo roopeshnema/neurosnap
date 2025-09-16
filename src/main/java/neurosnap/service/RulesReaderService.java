@@ -1,6 +1,7 @@
 package neurosnap.service;
 
 
+import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +27,9 @@ public class RulesReaderService
 
     private Map<String, AprScoreRule> aprScoreRules = new HashMap<>();
 
-    public void loadRules(String rulesFile) throws Exception {
+    @PostConstruct
+    public void loadRules() throws Exception {
+        String rulesFile = "rules.xlsx";
         try (InputStream is = PersonaReaderService.class.getClassLoader().getResourceAsStream(rulesFile);
              Workbook workbook = WorkbookFactory.create(is))
         {
